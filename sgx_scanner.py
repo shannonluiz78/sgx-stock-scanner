@@ -1,33 +1,60 @@
 import os
 import datetime
 import pandas as pd
+import yfinance as yf
 
-def fetch_stock(ticker):
-    """Fetches stock info safely without throwing uncaught exceptions."""
+# Fixed list of the Core 8 SGX Stocks
+CORE_8_STOCKS = [
+    {"ticker": "D05.SI", "name": "DBS Group Holdings"},
+    {"ticker": "O39.SI", "name": "OCBC Bank"},
+    {"ticker": "U11.SI", "name": "UOB"},
+    {"ticker": "Z74.SI", "name": "Singtel"},
+    {"ticker": "S68.SI", "name": "Singapore Exchange (SGX)"},
+    {"ticker": "C38U.SI", "name": "CapitaLand Integrated Commercial Trust"},
+    {"ticker": "A17U.SI", "name": "CapitaLand Ascendas REIT"},
+    {"ticker": "C6L.SI", "name": "Singapore Airlines"}
+]
+
+def fetch_stock_data(item):
+    ticker_symbol = item["ticker"]
+    company_name = item["name"]
+    
+    price_display = "Data Pending"
+    status = "Active"
+
     try:
-        import yfinance as yf
-        stock = yf.Ticker(ticker)
-        
-        # Fast info is more reliable than stock.info in headless cloud runners
+        stock = yf.Ticker(ticker_symbol)
         price = None
+        
+        # Method 1: Fast info (best for cloud runners)
         if hasattr(stock, 'fast_info'):
             price = stock.fast_info.get('lastPrice') or stock.fast_info.get('previousClose')
         
-        if not price and hasattr(stock, 'info') and isinstance(stock.info, dict):
+        # Method 2: Standard info dictionary fallback
+        if price is None and hasattr(stock, 'info') and isinstance(stock.info, dict):
             price = stock.info.get('regularMarketPrice') or stock.info.get('currentPrice')
-            
-        if price:
-            return {"Ticker": ticker, "Status": "Active", "Price (SGD)": f"${float(price):.2f}"}
-    except Exception as err:
-        print(f"Warning: Failed to fetch {ticker} -> {err}")
 
-    return {"Ticker": ticker, "Status": "Data Pending", "Price (SGD)": "N/A"}
+        if price is not None and float(price) > 0:
+            price_display = f"${float(price):.2f}"
+        else:
+            status = "Price Unavailable"
+    except Exception as e:
+        print(f"Warning fetching {ticker_symbol}: {e}")
+        status = "Fetch Error"
+
+    # Always return a row entry so all 8 stocks appear in the table
+    return {
+        "Ticker": ticker_symbol,
+        "Company": company_name,
+        "Price (SGD)": price_display,
+        "Status": status
+    }
 
 def generate_dashboard():
-    print("Starting SGX Core 8 Scanner...")
+    print("Fetching data for all 8 SGX Core stocks...")
     
-    tickers = ["D05.SI", "O39.SI", "U11.SI", "Z74.SI", "C6L.SI", "C38U.SI", "A17U.SI", "Y92.SI"]
-    results = [fetch_stock(t) for t in tickers]
+    # Process every item in the Core 8 array
+    results = [fetch_stock_data(item) for item in CORE_8_STOCKS]
     
     df = pd.DataFrame(results)
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -58,7 +85,7 @@ def generate_dashboard():
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
         
-    print("Successfully generated index.html!")
+    print(f"Successfully generated index.html with all {len(results)} stocks!")
 
 if __name__ == "__main__":
     generate_dashboard()
