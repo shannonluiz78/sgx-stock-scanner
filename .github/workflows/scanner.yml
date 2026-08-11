@@ -2,11 +2,11 @@ name: SGX Core 8 Dashboard Automation
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Automatically runs daily at midnight UTC
-  workflow_dispatch:     # Enables the manual "Run workflow" button in GitHub Actions
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:      # Allows manual trigger in GitHub Actions tab
 
 permissions:
-  contents: write       # CRITICAL: Grants write access to deploy to gh-pages
+  contents: write        # Required for deploying to GitHub Pages
 
 jobs:
   build-and-deploy:
@@ -27,6 +27,7 @@ jobs:
           pip install yfinance pandas numpy lxml requests
 
       - name: Run SGX Scanner Script
+        # Update this line if sgx_scanner.py is inside a subfolder (e.g., python src/sgx_scanner.py)
         run: python sgx_scanner.py
 
       - name: Deploy to GitHub Pages
