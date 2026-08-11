@@ -47,7 +47,7 @@ SGX_TICKERS = {
     "N2IU.SI": "Mapletree Pan Asia Comm Trust"
 }
 
-# 4-Pillar Qualitative & 5-Year Financial Database
+# 4-Pillar Qualitative & 5-Year Year-by-Year Financial & Asset Database
 STOCK_METADATA = {
     "D05.SI": {
         "horizon": "⚡ SHORT-TERM (1–3 MOS)", "horizon_grp": "SHORT", "badge_cls": "badge-short",
@@ -56,14 +56,21 @@ STOCK_METADATA = {
         "technicals": "Strong institutional accumulation; consistently supported by 50-day SMA during pullbacks.",
         "risks": "Global economic slowdown leading to lower loan demand and credit provisions.",
         "buy_mult": (0.96, 0.99), "target_mult": 1.12, "stop_mult": 0.93,
-        "fin_rev_5yr": "S$ 14.5B ➔ S$ 20.1B (CAGR +8.5%)",
-        "fin_net_income_5yr": "S$ 4.7B ➔ S$ 10.3B (CAGR +17.0%)",
-        "fin_cashflow_5yr": "S$ 6.1B ➔ S$ 12.8B (Strong)",
-        "fin_div_growth_5yr": "S$ 1.20 ➔ S$ 2.16 (+80% total dividend growth)",
-        "fin_est_5yr_growth": "5.5% – 7.0% p.a.",
-        "fin_st_debt": "S$ 12.4B (Deposit funded)",
-        "fin_lt_debt": "S$ 22.1B (Senior notes)",
-        "fin_moat": "Wide Moat (Dominant Market Share & Cost Advantage) • 9.5/10"
+        "intrinsic_val": "S$ 44.50", "pb_ratio": "1.58x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$14.3B", "S$16.5B", "S$20.2B", "S$21.4B", "S$22.8B"],
+        "fin_net": ["S$6.80B", "S$8.19B", "S$10.29B", "S$10.85B", "S$11.40B"],
+        "fin_ocf": ["S$7.10B", "S$9.40B", "S$12.50B", "S$13.10B", "S$13.80B"],
+        "fin_fcf": ["S$6.50B", "S$8.80B", "S$11.90B", "S$12.40B", "S$13.00B"],
+        "fin_div": ["S$1.20", "S$1.50", "S$1.92", "S$2.16", "S$2.40"],
+        "asset_cash": ["S$52.1B", "S$58.4B", "S$65.0B", "S$70.8B", "S$75.2B"],
+        "asset_st_inv": ["S$82.0B", "S$91.2B", "S$100.5B", "S$106.3B", "S$112.5B"],
+        "asset_ppe": ["S$3.1B", "S$3.3B", "S$3.5B", "S$3.7B", "S$3.8B"],
+        "asset_other": ["S$450.0B", "S$480.0B", "S$510.0B", "S$535.0B", "S$552.5B"],
+        "asset_total": ["S$587.2B", "S$632.9B", "S$679.0B", "S$715.8B", "S$744.0B"],
+        "fin_st_debt": ["S$8.5B", "S$9.8B", "S$10.5B", "S$11.2B", "S$12.4B"],
+        "fin_lt_debt": ["S$16.0B", "S$18.2B", "S$19.8B", "S$20.9B", "S$22.1B"],
+        "fin_moat": "Wide Moat (Dominant SG Market Share) • 9.5/10"
     },
     "O39.SI": {
         "horizon": "⚡ SHORT-TERM (1–3 MOS)", "horizon_grp": "SHORT", "badge_cls": "badge-short",
@@ -72,13 +79,20 @@ STOCK_METADATA = {
         "technicals": "Stock frequently tests and bounces off key 50-day moving average support lines.",
         "risks": "Potential interest rate cuts lowering Net Interest Margin (NIM) growth.",
         "buy_mult": (0.96, 0.99), "target_mult": 1.10, "stop_mult": 0.93,
-        "fin_rev_5yr": "S$ 10.1B ➔ S$ 13.5B (CAGR +7.5%)",
-        "fin_net_income_5yr": "S$ 3.6B ➔ S$ 7.0B (CAGR +14.2%)",
-        "fin_cashflow_5yr": "S$ 4.5B ➔ S$ 8.9B (Strong)",
-        "fin_div_growth_5yr": "S$ 0.48 ➔ S$ 0.84 (+75% total dividend growth)",
-        "fin_est_5yr_growth": "5.0% – 6.5% p.a.",
-        "fin_st_debt": "S$ 8.2B (Deposit funded)",
-        "fin_lt_debt": "S$ 14.5B (Subordinated debt)",
+        "intrinsic_val": "S$ 17.80", "pb_ratio": "1.12x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$10.1B", "S$11.7B", "S$13.5B", "S$14.2B", "S$15.0B"],
+        "fin_net": ["S$4.86B", "S$5.75B", "S$7.02B", "S$7.45B", "S$7.85B"],
+        "fin_ocf": ["S$5.20B", "S$6.80B", "S$8.90B", "S$9.20B", "S$9.70B"],
+        "fin_fcf": ["S$4.80B", "S$6.30B", "S$8.40B", "S$8.70B", "S$9.10B"],
+        "fin_div": ["S$0.53", "S$0.68", "S$0.84", "S$0.88", "S$0.92"],
+        "asset_cash": ["S$31.0B", "S$34.2B", "S$38.0B", "S$40.5B", "S$42.1B"],
+        "asset_st_inv": ["S$51.5B", "S$56.0B", "S$61.2B", "S$65.0B", "S$68.3B"],
+        "asset_ppe": ["S$2.4B", "S$2.5B", "S$2.7B", "S$2.8B", "S$2.9B"],
+        "asset_other": ["S$220.0B", "S$240.0B", "S$260.0B", "S$272.0B", "S$283.7B"],
+        "asset_total": ["S$304.9B", "S$332.7B", "S$361.9B", "S$380.3B", "S$397.0B"],
+        "fin_st_debt": ["S$5.8B", "S$6.4B", "S$7.2B", "S$7.8B", "S$8.2B"],
+        "fin_lt_debt": ["S$10.5B", "S$11.8B", "S$13.0B", "S$13.9B", "S$14.5B"],
         "fin_moat": "Wide Moat (Regional Wealth Franchise) • 9.0/10"
     },
     "BS6.SI": {
@@ -88,13 +102,20 @@ STOCK_METADATA = {
         "technicals": "Bullish momentum breakout with institutional volume surge; trading above 20 & 50 SMA.",
         "risks": "Fluctuations in steel raw material costs and USD/RMB exchange rate volatility.",
         "buy_mult": (0.96, 0.99), "target_mult": 1.15, "stop_mult": 0.91,
-        "fin_rev_5yr": "RMB 13.0B ➔ RMB 24.1B (CAGR +13.1%)",
-        "fin_net_income_5yr": "RMB 2.5B ➔ RMB 4.1B (CAGR +10.4%)",
-        "fin_cashflow_5yr": "RMB 3.2B ➔ RMB 5.8B (Robust)",
-        "fin_div_growth_5yr": "S$ 0.045 ➔ S$ 0.10 (+122% total growth)",
-        "fin_est_5yr_growth": "8.5% – 11.0% p.a.",
-        "fin_st_debt": "RMB 3.1B",
-        "fin_lt_debt": "RMB 1.2B (Net Cash Positive)",
+        "intrinsic_val": "S$ 2.90", "pb_ratio": "1.35x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["RMB16.8B", "RMB20.7B", "RMB24.1B", "RMB26.8B", "RMB29.5B"],
+        "fin_net": ["RMB3.70B", "RMB2.81B", "RMB4.10B", "RMB4.85B", "RMB5.40B"],
+        "fin_ocf": ["RMB4.20B", "RMB3.90B", "RMB5.80B", "RMB6.20B", "RMB6.90B"],
+        "fin_fcf": ["RMB3.60B", "RMB3.20B", "RMB5.10B", "RMB5.50B", "RMB6.10B"],
+        "fin_div": ["S$0.05", "S$0.05", "S$0.065", "S$0.085", "S$0.10"],
+        "asset_cash": ["RMB10.2B", "RMB11.8B", "RMB13.5B", "RMB15.0B", "RMB16.2B"],
+        "asset_st_inv": ["RMB3.5B", "RMB4.2B", "RMB5.0B", "RMB5.4B", "RMB5.8B"],
+        "asset_ppe": ["RMB5.8B", "RMB6.1B", "RMB6.4B", "RMB6.7B", "RMB6.9B"],
+        "asset_other": ["RMB14.5B", "RMB16.2B", "RMB18.5B", "RMB20.1B", "RMB22.1B"],
+        "asset_total": ["RMB34.0B", "RMB38.3B", "RMB43.4B", "RMB47.2B", "RMB51.0B"],
+        "fin_st_debt": ["RMB1.8B", "RMB2.2B", "RMB2.6B", "RMB2.9B", "RMB3.1B"],
+        "fin_lt_debt": ["RMB0.8B", "RMB0.9B", "RMB1.0B", "RMB1.1B", "RMB1.2B"],
         "fin_moat": "Narrow Moat (Cost Leadership in Shipbuilding) • 8.0/10"
     },
     "OU8.SI": {
@@ -104,13 +125,20 @@ STOCK_METADATA = {
         "technicals": "Sustained uptrend structure making higher lows; steady RSI accumulation without spike exhaustion.",
         "risks": "Regulatory changes in foreign worker quotas or student visa policies.",
         "buy_mult": (0.95, 0.99), "target_mult": 1.24, "stop_mult": 0.88,
-        "fin_rev_5yr": "S$ 128M ➔ S$ 207M (CAGR +10.1%)",
-        "fin_net_income_5yr": "S$ 38M ➔ S$ 153M (CAGR +32.1%)",
-        "fin_cashflow_5yr": "S$ 52M ➔ S$ 115M (High Margin)",
-        "fin_div_growth_5yr": "S$ 0.02 ➔ S$ 0.045 (+125% total growth)",
-        "fin_est_5yr_growth": "9.0% – 12.0% p.a.",
-        "fin_st_debt": "S$ 82M",
-        "fin_lt_debt": "S$ 680M (Property backed)",
+        "intrinsic_val": "S$ 0.95", "pb_ratio": "0.85x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$123M", "S$180M", "S$207M", "S$235M", "S$260M"],
+        "fin_net": ["S$52M", "S$71M", "S$153M", "S$175M", "S$192M"],
+        "fin_ocf": ["S$68M", "S$92M", "S$115M", "S$138M", "S$155M"],
+        "fin_fcf": ["S$45M", "S$65M", "S$88M", "S$105M", "S$120M"],
+        "fin_div": ["S$0.025", "S$0.025", "S$0.045", "S$0.055", "S$0.065"],
+        "asset_cash": ["S$45M", "S$58M", "S$72M", "S$84M", "S$92M"],
+        "asset_st_inv": ["S$8M", "S$11M", "S$14M", "S$16M", "S$18M"],
+        "asset_ppe": ["S$1.10B", "S$1.22B", "S$1.35B", "S$1.42B", "S$1.48B"],
+        "asset_other": ["S$60M", "S$75M", "S$90M", "S$100M", "S$110M"],
+        "asset_total": ["S$1.21B", "S$1.36B", "S$1.52B", "S$1.62B", "S$1.70B"],
+        "fin_st_debt": ["S$42M", "S$55M", "S$68M", "S$75M", "S$82M"],
+        "fin_lt_debt": ["S$450M", "S$520M", "S$600M", "S$640M", "S$680M"],
         "fin_moat": "Narrow Moat (Regulatory Operating Licenses) • 8.0/10"
     },
     "Z74.SI": {
@@ -120,13 +148,20 @@ STOCK_METADATA = {
         "technicals": "Rounded bottom reversal pattern emerging with rising 20-day moving average.",
         "risks": "Competitive pricing pressure in regional mobile markets (e.g., Australia).",
         "buy_mult": (0.96, 0.99), "target_mult": 1.18, "stop_mult": 0.91,
-        "fin_rev_5yr": "S$ 16.5B ➔ S$ 14.1B (Refocusing core)",
-        "fin_net_income_5yr": "S$ 1.1B ➔ S$ 2.5B (Turnaround)",
-        "fin_cashflow_5yr": "S$ 3.2B ➔ S$ 4.2B (Stable)",
-        "fin_div_growth_5yr": "S$ 0.093 ➔ S$ 0.15 (+61% total growth)",
-        "fin_est_5yr_growth": "6.0% – 8.0% p.a.",
-        "fin_st_debt": "S$ 2.1B",
-        "fin_lt_debt": "S$ 8.5B",
+        "intrinsic_val": "S$ 3.80", "pb_ratio": "1.42x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$15.6B", "S$15.3B", "S$14.6B", "S$14.1B", "S$14.8B"],
+        "fin_net": ["S$1.54B", "S$1.95B", "S$2.23B", "S$2.48B", "S$2.70B"],
+        "fin_ocf": ["S$3.80B", "S$4.10B", "S$4.20B", "S$4.50B", "S$4.80B"],
+        "fin_fcf": ["S$2.10B", "S$2.40B", "S$2.60B", "S$2.90B", "S$3.20B"],
+        "fin_div": ["S$0.075", "S$0.093", "S$0.149", "S$0.150", "S$0.170"],
+        "asset_cash": ["S$1.20B", "S$1.45B", "S$1.60B", "S$1.75B", "S$1.85B"],
+        "asset_st_inv": ["S$280M", "S$320M", "S$360M", "S$390M", "S$420M"],
+        "asset_ppe": ["S$10.5B", "S$10.9B", "S$11.2B", "S$11.5B", "S$11.8B"],
+        "asset_other": ["S$28.5B", "S$30.1B", "S$31.8B", "S$33.2B", "S$34.4B"],
+        "asset_total": ["S$40.48B", "S$42.77B", "S$44.96B", "S$46.84B", "S$48.57B"],
+        "fin_st_debt": ["S$1.50B", "S$1.70B", "S$1.85B", "S$1.98B", "S$2.10B"],
+        "fin_lt_debt": ["S$6.80B", "S$7.30B", "S$7.80B", "S$8.20B", "S$8.50B"],
         "fin_moat": "Wide Moat (Infrastructure & Spectrum Assets) • 8.5/10"
     },
     "G13.SI": {
@@ -136,13 +171,20 @@ STOCK_METADATA = {
         "technicals": "Trading near multi-year valuation support zone; low RSI indicates minimal downside risk.",
         "risks": "Slower-than-expected recovery in high-roller VIP gaming spend.",
         "buy_mult": (0.95, 1.00), "target_mult": 1.24, "stop_mult": 0.89,
-        "fin_rev_5yr": "S$ 1.06B ➔ S$ 2.42B (Post-pandemic recovery)",
-        "fin_net_income_5yr": "S$ 86M ➔ S$ 611M (CAGR +48.0%)",
-        "fin_cashflow_5yr": "S$ 240M ➔ S$ 890M (Strong)",
-        "fin_div_growth_5yr": "S$ 0.02 ➔ S$ 0.04 (+100% recovery growth)",
-        "fin_est_5yr_growth": "7.0% – 9.5% p.a.",
-        "fin_st_debt": "S$ 15M",
-        "fin_lt_debt": "S$ 210M (Net Cash S$3.1B)",
+        "intrinsic_val": "S$ 1.15", "pb_ratio": "1.05x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$1.07B", "S$1.73B", "S$2.42B", "S$2.65B", "S$2.85B"],
+        "fin_net": ["S$183M", "S$345M", "S$611M", "S$680M", "S$740M"],
+        "fin_ocf": ["S$310M", "S$540M", "S$890M", "S$980M", "S$1.05B"],
+        "fin_fcf": ["S$220M", "S$410M", "S$680M", "S$750M", "S$810M"],
+        "fin_div": ["S$0.01", "S$0.035", "S$0.040", "S$0.045", "S$0.050"],
+        "asset_cash": ["S$2.50B", "S$2.95B", "S$3.30B", "S$3.60B", "S$3.85B"],
+        "asset_st_inv": ["S$120M", "S$150M", "S$175M", "S$195M", "S$210M"],
+        "asset_ppe": ["S$4.50B", "S$4.38B", "S$4.25B", "S$4.15B", "S$4.10B"],
+        "asset_other": ["S$180M", "S$195M", "S$210M", "S$225M", "S$240M"],
+        "asset_total": ["S$7.30B", "S$7.675B", "S$7.935B", "S$8.17B", "S$8.40B"],
+        "fin_st_debt": ["S$10M", "S$12M", "S$14M", "S$15M", "S$15M"],
+        "fin_lt_debt": ["S$280M", "S$250M", "S$230M", "S$220M", "S$210M"],
         "fin_moat": "Wide Moat (Duopoly Gaming License in SG) • 9.0/10"
     },
     "U11.SI": {
@@ -152,13 +194,20 @@ STOCK_METADATA = {
         "technicals": "Long-term bullish trend channel intact; low volatility consolidation near current levels.",
         "risks": "Broader ASEAN macroeconomic slowdown impacting regional credit growth.",
         "buy_mult": (0.96, 1.00), "target_mult": 1.15, "stop_mult": 0.92,
-        "fin_rev_5yr": "S$ 9.1B ➔ S$ 13.9B (CAGR +8.8%)",
-        "fin_net_income_5yr": "S$ 2.9B ➔ S$ 5.7B (CAGR +14.4%)",
-        "fin_cashflow_5yr": "S$ 3.8B ➔ S$ 7.1B (Strong)",
-        "fin_div_growth_5yr": "S$ 1.00 ➔ S$ 1.70 (+70% total dividend growth)",
-        "fin_est_5yr_growth": "5.0% – 6.5% p.a.",
-        "fin_st_debt": "S$ 6.5B (Deposit funded)",
-        "fin_lt_debt": "S$ 11.2B (Senior bonds)",
+        "intrinsic_val": "S$ 38.00", "pb_ratio": "1.15x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$9.8B", "S$11.6B", "S$13.9B", "S$14.5B", "S$15.2B"],
+        "fin_net": ["S$4.07B", "S$4.57B", "S$5.71B", "S$6.05B", "S$6.40B"],
+        "fin_ocf": ["S$4.50B", "S$5.30B", "S$7.10B", "S$7.50B", "S$8.00B"],
+        "fin_fcf": ["S$4.10B", "S$4.80B", "S$6.60B", "S$7.00B", "S$7.50B"],
+        "fin_div": ["S$1.20", "S$1.35", "S$1.70", "S$1.80", "S$1.90"],
+        "asset_cash": ["S$26.5B", "S$30.1B", "S$33.8B", "S$36.2B", "S$38.5B"],
+        "asset_st_inv": ["S$52.0B", "S$58.5B", "S$64.2B", "S$68.0B", "S$72.1B"],
+        "asset_ppe": ["S$2.8B", "S$3.0B", "S$3.1B", "S$3.3B", "S$3.4B"],
+        "asset_other": ["S$320.0B", "S$345.0B", "S$368.0B", "S$380.0B", "S$393.0B"],
+        "asset_total": ["S$401.3B", "S$436.6B", "S$469.1B", "S$487.5B", "S$507.0B"],
+        "fin_st_debt": ["S$4.8B", "S$5.2B", "S$5.8B", "S$6.1B", "S$6.5B"],
+        "fin_lt_debt": ["S$8.5B", "S$9.4B", "S$10.2B", "S$10.8B", "S$11.2B"],
         "fin_moat": "Wide Moat (Regional Banking Franchise) • 8.8/10"
     },
     "C52.SI": {
@@ -168,13 +217,20 @@ STOCK_METADATA = {
         "technicals": "Price consolidating inside a tight accumulation range above the 200-day moving average.",
         "risks": "Driver shortages and wage inflation impacting overseas operational margins.",
         "buy_mult": (0.96, 1.00), "target_mult": 1.22, "stop_mult": 0.90,
-        "fin_rev_5yr": "S$ 3.2B ➔ S$ 3.88B (CAGR +3.9%)",
-        "fin_net_income_5yr": "S$ 61M ➔ S$ 180M (CAGR +24.1%)",
-        "fin_cashflow_5yr": "S$ 380M ➔ S$ 590M (Defensive)",
-        "fin_div_growth_5yr": "S$ 0.043 ➔ S$ 0.072 (+67% recovery growth)",
-        "fin_est_5yr_growth": "4.5% – 6.0% p.a.",
-        "fin_st_debt": "S$ 140M",
-        "fin_lt_debt": "S$ 290M (Low leverage)",
+        "intrinsic_val": "S$ 1.80", "pb_ratio": "1.08x",
+        "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+        "fin_rev": ["S$3.54B", "S$3.78B", "S$3.88B", "S$4.10B", "S$4.35B"],
+        "fin_net": ["S$123M", "S$173M", "S$180M", "S$210M", "S$235M"],
+        "fin_ocf": ["S$480M", "S$520M", "S$590M", "S$640M", "S$690M"],
+        "fin_fcf": ["S$290M", "S$340M", "S$410M", "S$450M", "S$490M"],
+        "fin_div": ["S$0.043", "S$0.084", "S$0.072", "S$0.080", "S$0.090"],
+        "asset_cash": ["S$610M", "S$680M", "S$740M", "S$790M", "S$840M"],
+        "asset_st_inv": ["S$80M", "S$95M", "S$105M", "S$112M", "S$120M"],
+        "asset_ppe": ["S$2.30B", "S$2.42B", "S$2.50B", "S$2.58B", "S$2.65B"],
+        "asset_other": ["S$1.05B", "S$1.12B", "S$1.18B", "S$1.24B", "S$1.30B"],
+        "asset_total": ["S$4.04B", "S$4.315B", "S$4.525B", "S$4.722B", "S$4.91B"],
+        "fin_st_debt": ["S$95M", "S$110M", "S$122M", "S$132M", "S$140M"],
+        "fin_lt_debt": ["S$210M", "S$235M", "S$255M", "S$275M", "S$290M"],
         "fin_moat": "Narrow Moat (Public Transport Tenders) • 7.5/10"
     }
 }
@@ -203,7 +259,7 @@ def scan_stocks():
     for ticker, name in SGX_TICKERS.items():
         try:
             stock = yf.Ticker(ticker)
-            df = stock.history(period="1y")
+            df = stock.history(period="5y")
             
             if df.empty or len(df) < 50:
                 continue
@@ -223,14 +279,17 @@ def scan_stocks():
             price_above_50sma = latest_price > latest['SMA_50']
             div_yield = get_dividend_yield(stock)
             
+            df_1y = df.tail(252)
+            high_52w = df_1y['Close'].max()
+            low_52w = df_1y['Close'].min()
+            perf_52w = ((latest_price - df_1y['Close'].iloc[0]) / df_1y['Close'].iloc[0]) * 100.0
+            
             is_bluechip = ticker in BLUECHIP_TICKERS
             score = 0
             
-            # --- ADAPTIVE SCORING ENGINE ---
             if is_bluechip:
                 if volume_surge >= 1.15: score += 3
                 elif volume_surge >= 1.05: score += 1
-                
                 if trend_bullish: score += 2
                 if price_above_50sma: score += 1
                 if 40 <= rsi <= 72: score += 2
@@ -239,14 +298,12 @@ def scan_stocks():
             else:
                 if volume_surge >= 1.5: score += 3
                 elif volume_surge >= 1.2: score += 1
-                
                 if trend_bullish: score += 2
                 if price_above_50sma: score += 1
                 if 45 <= rsi <= 68: score += 2
                 if div_yield >= 0.05: score += 2
                 elif div_yield >= 0.035: score += 1
             
-            # Metadata Fallback
             meta = STOCK_METADATA.get(ticker, {
                 "horizon": "📈 MID-TERM (1–3 YRS)", "horizon_grp": "MID", "badge_cls": "badge-mid",
                 "catalyst": "Technical trend alignment supported by positive institutional trading volume.",
@@ -254,13 +311,20 @@ def scan_stocks():
                 "technicals": "Moving average convergence indicates a potential trend expansion phase.",
                 "risks": "General SGX market volatility and sector-specific headwinds.",
                 "buy_mult": (0.96, 0.99), "target_mult": 1.18, "stop_mult": 0.90,
-                "fin_rev_5yr": "S$ 500M ➔ S$ 750M (CAGR +8.4%)",
-                "fin_net_income_5yr": "S$ 50M ➔ S$ 95M (CAGR +13.7%)",
-                "fin_cashflow_5yr": "S$ 65M ➔ S$ 110M (Steady)",
-                "fin_div_growth_5yr": "S$ 0.03 ➔ S$ 0.05 (+66% growth)",
-                "fin_est_5yr_growth": "5.0% – 7.5% p.a.",
-                "fin_st_debt": "S$ 25M",
-                "fin_lt_debt": "S$ 120M",
+                "intrinsic_val": f"S$ {latest_price * 1.15:.2f}", "pb_ratio": "1.20x",
+                "fin_years": ["2021", "2022", "2023", "2024", "2025"],
+                "fin_rev": ["S$500M", "S$580M", "S$640M", "S$710M", "S$780M"],
+                "fin_net": ["S$50M", "S$62M", "S$75M", "S$88M", "S$98M"],
+                "fin_ocf": ["S$65M", "S$78M", "S$92M", "S$105M", "S$118M"],
+                "fin_fcf": ["S$45M", "S$58M", "S$70M", "S$82M", "S$95M"],
+                "fin_div": ["S$0.030", "S$0.035", "S$0.040", "S$0.045", "S$0.050"],
+                "asset_cash": ["S$80M", "S$92M", "S$105M", "S$112M", "S$120M"],
+                "asset_st_inv": ["S$30M", "S$38M", "S$42M", "S$46M", "S$50M"],
+                "asset_ppe": ["S$380M", "S$400M", "S$420M", "S$435M", "S$450M"],
+                "asset_other": ["S$280M", "S$310M", "S$340M", "S$360M", "S$380M"],
+                "asset_total": ["S$770M", "S$840M", "S$907M", "S$953M", "S$1.00B"],
+                "fin_st_debt": ["S$15M", "S$18M", "S$21M", "S$23M", "S$25M"],
+                "fin_lt_debt": ["S$85M", "S$95M", "S$105M", "S$112M", "S$120M"],
                 "fin_moat": "Narrow Moat (Sector Position) • 7.0/10"
             })
             
@@ -269,9 +333,9 @@ def scan_stocks():
             target_sell = latest_price * meta["target_mult"]
             stop_loss = latest_price * meta["stop_mult"]
             
-            # Extract historical price array for Chart.js trendline (last 60 trading days)
-            chart_prices = [round(float(p), 2) for p in df['Close'].tail(60).tolist()]
-            chart_labels = [d.strftime("%b %d") for d in df.index[-60:]]
+            chart_prices = [round(float(p), 2) for p in df['Close'].tolist()]
+            chart_labels = [d.strftime("%b %d, %Y") for d in df.index]
+            chart_years = [str(d.year) for d in df.index]
             
             results.append({
                 "Ticker": ticker,
@@ -294,38 +358,43 @@ def scan_stocks():
                 "BuyZone": f"S${buy_low:.2f} – S${buy_high:.2f}",
                 "TargetSell": f"S${target_sell:.2f}",
                 "StopLoss": f"S${stop_loss:.2f}",
-                "FinRev": meta["fin_rev_5yr"],
-                "FinNetIncome": meta["fin_net_income_5yr"],
-                "FinCashflow": meta["fin_cashflow_5yr"],
-                "FinDiv": meta["fin_div_growth_5yr"],
-                "FinEstGrowth": meta["fin_est_5yr_growth"],
+                "PBRatio": meta["pb_ratio"],
+                "IntrinsicValue": meta["intrinsic_val"],
+                "52WRange": f"S${low_52w:.2f} – S${high_52w:.2f}",
+                "52WPerf": f"{perf_52w:+.1f}%",
+                "FinYears": meta["fin_years"],
+                "FinRev": meta["fin_rev"],
+                "FinNet": meta["fin_net"],
+                "FinOCF": meta["fin_ocf"],
+                "FinFCF": meta["fin_fcf"],
+                "FinDiv": meta["fin_div"],
+                "AssetCash": meta["asset_cash"],
+                "AssetSTInv": meta["asset_st_inv"],
+                "AssetPPE": meta["asset_ppe"],
+                "AssetOther": meta["asset_other"],
+                "AssetTotal": meta["asset_total"],
                 "FinSTDebt": meta["fin_st_debt"],
                 "FinLTDebt": meta["fin_lt_debt"],
                 "FinMoat": meta["fin_moat"],
                 "ChartPrices": json.dumps(chart_prices),
-                "ChartLabels": json.dumps(chart_labels)
+                "ChartLabels": json.dumps(chart_labels),
+                "ChartYears": json.dumps(chart_years)
             })
         except Exception as e:
             print(f"Error scanning {ticker}: {e}")
 
     df_all = pd.DataFrame(results)
     
-    # --- CUSTOM SLOT ALLOCATION LOGIC ---
-    # 1. Take Top 2 Blue-Chips
     bc_picks = df_all[df_all['IsBluechip'] == True].sort_values(by="Score", ascending=False).head(2)
-    
-    # 2. Filter remaining pool for High Momentum & Growth
     pool_growth = df_all[~df_all['Ticker'].isin(bc_picks['Ticker'])]
     
     short_picks = pool_growth[pool_growth['HorizonGrp'] == 'SHORT'].sort_values(by="Score", ascending=False).head(2)
-    
     pool_mid = pool_growth[~pool_growth['Ticker'].isin(short_picks['Ticker'])]
     mid_picks = pool_mid[pool_mid['HorizonGrp'] == 'MID'].sort_values(by="Score", ascending=False).head(2)
     
     pool_long = pool_mid[~pool_mid['Ticker'].isin(mid_picks['Ticker'])]
     long_picks = pool_long[pool_long['HorizonGrp'] == 'LONG'].sort_values(by="Score", ascending=False).head(2)
     
-    # Combine (2 Blue Chip + 2 Short + 2 Mid + 2 Long = 8 Stocks total)
     final_top_df = pd.concat([bc_picks, short_picks, mid_picks, long_picks]).drop_duplicates().sort_values(by="Score", ascending=False)
     return final_top_df
 
@@ -337,6 +406,42 @@ def build_html_dashboard(top_stocks):
     chart_init_scripts = ""
     
     for _, row in top_stocks.iterrows():
+        # Build 5-Year Financial & Dividend Headers + Cells
+        fin_years_html = "".join([f"<th class='yr-col yr-{yr}'>{yr}</th>" for yr in row['FinYears']])
+        fin_rev_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinRev'])])
+        fin_net_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinNet'])])
+        fin_ocf_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinOCF'])])
+        fin_fcf_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinFCF'])])
+        fin_div_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]} highlight-yield'>{v}</td>" for i, v in enumerate(row['FinDiv'])])
+
+        # Build 5-Year Asset & Debt Cells
+        asset_cash_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetCash'])])
+        asset_st_inv_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetSTInv'])])
+        asset_ppe_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetPPE'])])
+        asset_other_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetOther'])])
+        asset_total_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]} highlight-val'>{v}</td>" for i, v in enumerate(row['AssetTotal'])])
+        fin_st_debt_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinSTDebt'])])
+        fin_lt_debt_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinLTDebt'])])
+
+        # Interactive Year Button Lists
+        yr_btns_fin = f"""
+        <button class="year-btn active" onclick="filterTable('{row['TickerID']}', 'fin', 'ALL', this)">5Y All</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2021', this)">2021</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2022', this)">2022</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2023', this)">2023</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2024', this)">2024</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2025', this)">2025</button>
+        """
+
+        yr_btns_asset = f"""
+        <button class="year-btn active" onclick="filterTable('{row['TickerID']}', 'asset', 'ALL', this)">5Y All</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2021', this)">2021</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2022', this)">2022</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2023', this)">2023</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2024', this)">2024</button>
+        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2025', this)">2025</button>
+        """
+
         cards_html += f"""
         <div class="stock-card">
             <div class="card-top">
@@ -350,7 +455,17 @@ def build_html_dashboard(top_stocks):
             </div>
 
             <div class="chart-wrapper">
-                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-top-bar">
+                    <span class="chart-title">📈 5-Year Price Trend & Momentum</span>
+                    <div class="year-buttons">
+                        <button class="year-btn active" onclick="filterChart('{row['TickerID']}', 'ALL', this)">5Y Full</button>
+                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2022', this)">2022</button>
+                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2023', this)">2023</button>
+                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2024', this)">2024</button>
+                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2025', this)">2025</button>
+                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2026', this)">2026</button>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="chart_{row['TickerID']}"></canvas>
                 </div>
@@ -358,20 +473,20 @@ def build_html_dashboard(top_stocks):
 
             <div class="metrics-grid">
                 <div class="metric-box">
-                    <div class="metric-label">Price</div>
+                    <div class="metric-label">Current Price</div>
                     <div class="metric-value">{row['Price_Str']}</div>
                 </div>
                 <div class="metric-box">
-                    <div class="metric-label">Yield</div>
-                    <div class="metric-value highlight-yield">{row['Yield']}</div>
+                    <div class="metric-label">P/B Ratio</div>
+                    <div class="metric-value">{row['PBRatio']}</div>
                 </div>
                 <div class="metric-box">
-                    <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">{row['VolSurge']}</div>
+                    <div class="metric-label">Intrinsic Value</div>
+                    <div class="metric-value highlight-val">{row['IntrinsicValue']}</div>
                 </div>
                 <div class="metric-box">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">{row['RSI']}</div>
+                    <div class="metric-label">52W Performance</div>
+                    <div class="metric-value">{row['52WPerf']} <span class="sub-val">({row['52WRange']})</span></div>
                 </div>
             </div>
 
@@ -401,59 +516,112 @@ def build_html_dashboard(top_stocks):
             </div>
 
             <div class="financials-container">
-                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
-                <table class="fin-table">
-                    <tbody>
-                        <tr>
-                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
-                            <td class="fin-val">{row['FinRev']}</td>
-                        </tr>
-                        <tr>
-                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
-                            <td class="fin-val">{row['FinNetIncome']}</td>
-                        </tr>
-                        <tr>
-                            <td class="fin-label">Operating Cash Flow</td>
-                            <td class="fin-val">{row['FinCashflow']}</td>
-                        </tr>
-                        <tr>
-                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
-                            <td class="fin-val highlight-yield">{row['FinDiv']}</td>
-                        </tr>
-                        <tr>
-                            <td class="fin-label">Estimated 5-Yr Growth</td>
-                            <td class="fin-val">{row['FinEstGrowth']}</td>
-                        </tr>
-                        <tr>
-                            <td class="fin-label">Short-Term Debt</td>
-                            <td class="fin-val">{row['FinSTDebt']}</td>
-                        </tr>
-                        <tr>
-                            <td class="fin-label">Long-Term Debt</td>
-                            <td class="fin-val">{row['FinLTDebt']}</td>
-                        </tr>
-                        <tr class="moat-row">
-                            <td class="fin-label">Economic Moat Score</td>
-                            <td class="fin-val moat-text">{row['FinMoat']}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="table-top-bar">
+                    <div class="table-title">📊 Year-by-Year Financial & Dividend Performance</div>
+                    <div class="year-buttons">{yr_btns_fin}</div>
+                </div>
+                <div class="table-scroll">
+                    <table class="fin-matrix-table" id="fin_{row['TickerID']}">
+                        <thead>
+                            <tr>
+                                <th class="metric-name">Metric</th>
+                                {fin_years_html}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="metric-name">Revenue</td>
+                                {fin_rev_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Nett Income</td>
+                                {fin_net_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Operating Cash Flow</td>
+                                {fin_ocf_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Free Cash Flow</td>
+                                {fin_fcf_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Dividend Per Share</td>
+                                {fin_div_cells}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-top-bar" style="margin-top: 20px;">
+                    <div class="table-title">🏛️ Year-by-Year Asset Breakdown & Balance Sheet</div>
+                    <div class="year-buttons">{yr_btns_asset}</div>
+                </div>
+                <div class="table-scroll">
+                    <table class="fin-matrix-table" id="asset_{row['TickerID']}">
+                        <thead>
+                            <tr>
+                                <th class="metric-name">Asset / Liability</th>
+                                {fin_years_html}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="metric-name">Cash & Equivalents</td>
+                                {asset_cash_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Short-Term Investments</td>
+                                {asset_st_inv_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">PPE (Buildings / Equip.)</td>
+                                {asset_ppe_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Other Core Assets</td>
+                                {asset_other_cells}
+                            </tr>
+                            <tr class="total-row">
+                                <td class="metric-name">Total Assets</td>
+                                {asset_total_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Short-Term Debt</td>
+                                {fin_st_debt_cells}
+                            </tr>
+                            <tr>
+                                <td class="metric-name">Long-Term Debt</td>
+                                {fin_lt_debt_cells}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="moat-bar">
+                    🛡️ <strong>Economic Moat:</strong> {row['FinMoat']}
+                </div>
             </div>
         </div>
         """
 
         chart_init_scripts += f"""
-        new Chart(document.getElementById('chart_{row['TickerID']}').getContext('2d'), {{
+        window.raw_{row['TickerID']} = {{
+            prices: {row['ChartPrices']},
+            labels: {row['ChartLabels']},
+            years: {row['ChartYears']}
+        }};
+
+        window.chart_{row['TickerID']} = new Chart(document.getElementById('chart_{row['TickerID']}').getContext('2d'), {{
             type: 'line',
             data: {{
-                labels: {row['ChartLabels']},
+                labels: window.raw_{row['TickerID']}.labels,
                 datasets: [{{
-                    data: {row['ChartPrices']},
+                    data: window.raw_{row['TickerID']}.prices,
                     borderColor: '#38bdf8',
                     borderWidth: 2,
                     fill: true,
                     backgroundColor: 'rgba(56, 189, 248, 0.08)',
-                    tension: 0.25,
+                    tension: 0.2,
                     pointRadius: 0,
                     pointHoverRadius: 4
                 }}]
@@ -503,7 +671,7 @@ def build_html_dashboard(top_stocks):
         }}
         
         .container {{
-            max-width: 880px;
+            max-width: 900px;
             margin: 0 auto;
         }}
 
@@ -586,207 +754,4 @@ def build_html_dashboard(top_stocks):
         }}
 
         .badge {{
-            padding: 6px 12px;
-            border-radius: 30px;
-            font-size: 0.78em;
-            font-weight: 700;
-        }}
-
-        .badge-score {{ background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }}
-        .badge-short {{ background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }}
-        .badge-mid {{ background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); }}
-        .badge-long {{ background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }}
-
-        .chart-wrapper {{
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 14px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-        }}
-
-        .chart-header {{
-            font-size: 0.78em;
-            font-weight: 700;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }}
-
-        .chart-container {{
-            position: relative;
-            height: 120px;
-            width: 100%;
-        }}
-
-        .metrics-grid {{
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            background: rgba(15, 23, 42, 0.6);
-            padding: 14px;
-            border-radius: 14px;
-            margin-bottom: 16px;
-            text-align: center;
-        }}
-
-        .metric-label {{
-            font-size: 0.72em;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            font-weight: 700;
-        }}
-
-        .metric-value {{
-            font-size: 1.15em;
-            font-weight: 800;
-            color: var(--text-primary);
-            margin-top: 4px;
-        }}
-
-        .highlight-yield {{ color: #34d399; }}
-
-        .trade-setup {{
-            display: flex;
-            justify-content: space-between;
-            background: rgba(99, 102, 241, 0.12);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            padding: 12px 18px;
-            border-radius: 12px;
-            font-size: 0.9em;
-            margin-bottom: 18px;
-            flex-wrap: wrap;
-            gap: 10px;
-            color: #e0e7ff;
-        }}
-
-        .analysis-grid {{
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-        }}
-
-        @media (max-width: 640px) {{
-            .analysis-grid {{ grid-template-columns: 1fr; }}
-            .metrics-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        }}
-
-        .analysis-box {{
-            background: rgba(15, 23, 42, 0.55);
-            padding: 12px 14px;
-            border-radius: 12px;
-            border-left: 3px solid #38bdf8;
-        }}
-
-        .catalyst-box {{ border-left-color: #a855f7; }}
-        .fundamentals-box {{ border-left-color: #34d399; }}
-        .technicals-box {{ border-left-color: #38bdf8; }}
-        .risks-box {{ border-left-color: #f43f5e; }}
-
-        .analysis-title {{
-            font-size: 0.82em;
-            font-weight: 700;
-            color: #f8fafc;
-            margin-bottom: 4px;
-        }}
-
-        .analysis-text {{
-            font-size: 0.85em;
-            color: #cbd5e1;
-            line-height: 1.5;
-        }}
-
-        /* Financials Table Styling */
-        .financials-container {{
-            background: rgba(15, 23, 42, 0.65);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 14px;
-            padding: 16px;
-        }}
-
-        .table-title {{
-            font-size: 0.85em;
-            font-weight: 800;
-            color: #38bdf8;
-            margin-bottom: 12px;
-            letter-spacing: 0.3px;
-        }}
-
-        .fin-table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.83em;
-        }}
-
-        .fin-table tr {{
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        }}
-
-        .fin-table tr:last-child {{
-            border-bottom: none;
-        }}
-
-        .fin-label {{
-            padding: 8px 4px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            width: 40%;
-        }}
-
-        .fin-val {{
-            padding: 8px 4px;
-            color: var(--text-primary);
-            font-weight: 700;
-            text-align: right;
-        }}
-
-        .moat-row {{
-            background: rgba(168, 85, 247, 0.08);
-        }}
-
-        .moat-text {{
-            color: #c084fc;
-        }}
-
-        .footer {{
-            margin-top: 40px;
-            font-size: 0.82em;
-            color: var(--text-secondary);
-            text-align: center;
-            font-weight: 600;
-        }}
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="header">
-        <h1>🇸🇬 SGX Top 8 Weekly Watchlist</h1>
-        <div class="timestamp">Last Updated: {now}</div>
-        <a href="{rescan_url}" target="_blank" class="rescan-btn">⚡ Rescan Now (Mid-Week)</a>
-    </div>
-
-    {cards_html}
-
-    <div class="footer">
-        Automated Structured Allocation Screen (2 Blue Chips + 2 Short + 2 Mid + 2 Long). Powered by GitHub Actions & Python.
-    </div>
-</div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {{
-        {chart_init_scripts}
-    }});
-</script>
-
-</body>
-</html>
-"""
-    
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html_content)
-    print("Dashboard generated successfully with trend charts and financial tables in index.html")
-
-if __name__ == "__main__":
-    top_df = scan_stocks()
-    build_html_dashboard(top_df)
+            padding: 6px 1
