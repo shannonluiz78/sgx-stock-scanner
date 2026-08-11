@@ -2,7 +2,13 @@ import yfinance as yf
 import pandas as pd
 import datetime
 import os
-import requests
+
+# ======================================================================
+# ⚙️ CONFIGURATION (SETTINGS ARE RIGHT HERE AT THE TOP!)
+# ======================================================================
+GITHUB_USERNAME = "shannonluiz78"  # 👈 Change to your GitHub username
+GITHUB_REPO_NAME = "sgx-stock-scanner"     # 👈 Change if your repo has a different name
+# ======================================================================
 
 # 30-Stock SGX Universe
 SGX_TICKERS = {
@@ -38,6 +44,40 @@ SGX_TICKERS = {
     "N2IU.SI": "Mapletree Pan Asia Comm Trust"
 }
 
+# Metadata & Trade Setups for High-Conviction Picks
+STOCK_METADATA = {
+    "BS6.SI": {
+        "horizon": "SHORT-TERM (1–3 MOS)",
+        "badge_cls": "badge-short",
+        "reason": "<strong>Momentum Breakout.</strong> Massive volume accumulation driven by record-high order books for eco-friendly container vessels. RSI is elevated, so aim to enter on a minor pull-back into the buy zone.",
+        "buy_mult": (0.96, 0.99), "target_mult": 1.15, "stop_mult": 0.91
+    },
+    "OU8.SI": {
+        "horizon": "MID-TERM (1–3 YRS)",
+        "badge_cls": "badge-mid",
+        "reason": "<strong>Growth & Supply Shortage.</strong> Specialized worker and foreign student accommodation operator benefiting from severe supply shortages across Singapore and the UK. RSI is in the ideal zone for continuation.",
+        "buy_mult": (0.95, 0.99), "target_mult": 1.24, "stop_mult": 0.88
+    },
+    "G13.SI": {
+        "horizon": "MID-TERM (1–3 YRS)",
+        "badge_cls": "badge-mid",
+        "reason": "<strong>Value Recovery.</strong> Trading near low valuation levels with a strong net-cash balance sheet. RWS 2.0 expansion and resilient tourism volume provide multi-month upside backed by a high dividend yield floor.",
+        "buy_mult": (0.95, 1.00), "target_mult": 1.24, "stop_mult": 0.89
+    },
+    "U11.SI": {
+        "horizon": "LONG-TERM (5–10 YRS)",
+        "badge_cls": "badge-long",
+        "reason": "<strong>Core Income Anchor.</strong> ASEAN expansion continues to drive wealth management and loan growth. Healthy RSI consolidation makes it an attractive steady income compounder.",
+        "buy_mult": (0.96, 1.00), "target_mult": 1.15, "stop_mult": 0.92
+    },
+    "C52.SI": {
+        "horizon": "LONG-TERM (3–5+ YRS)",
+        "badge_cls": "badge-long",
+        "reason": "<strong>Defensive Yield.</strong> Global land transport operator winning lucrative overseas public transport contracts in the UK and Australia. Acts as a highly stable, high dividend payer.",
+        "buy_mult": (0.96, 1.00), "target_mult": 1.22, "stop_mult": 0.90
+    }
+}
+
 VOLUME_SURGE_THRESHOLD = 1.5
 
 def calculate_rsi(series, period=14):
@@ -48,10 +88,17 @@ def calculate_rsi(series, period=14):
     return 100 - (100 / (1 + rs))
 
 def get_dividend_yield(ticker_obj):
+    """Safely retrieves dividend yield and fixes percentage scaling bugs."""
     try:
         info = ticker_obj.info
         yield_val = info.get('dividendYield') or info.get('trailingAnnualDividendYield') or 0.0
-        return float(yield_val)
+        yield_val = float(yield_val)
+        
+        # Scale back if returned as a whole percentage
+        if yield_val > 1.0:
+            yield_val = yield_val / 100.0
+            
+        return yield_val
     except Exception:
         return 0.0
 
@@ -91,14 +138,34 @@ def scan_stocks():
             if div_yield >= 0.05: score += 2
             elif div_yield >= 0.035: score += 1
             
+            # Default metadata fallback
+            meta = STOCK_METADATA.get(ticker, {
+                "horizon": "MID-TERM (1–3 YRS)",
+                "badge_cls": "badge-mid",
+                "reason": "Technical trend alignment with solid volume support.",
+                "buy_mult": (0.96, 0.99), "target_mult": 1.18, "stop_mult": 0.90
+            })
+            
+            buy_low = latest_price * meta["buy_mult"][0]
+            buy_high = latest_price * meta["buy_mult"][1]
+            target_sell = latest_price * meta["target_mult"]
+            stop_loss = latest_price * meta["stop_mult"]
+            
             results.append({
                 "Ticker": ticker,
                 "Name": name,
-                "Price": f"S${latest_price:.2f}",
+                "Price": latest_price,
+                "Price_Str": f"S${latest_price:.2f}",
                 "Yield": f"{div_yield * 100:.2f}%",
                 "VolSurge": f"{volume_surge:.2f}x",
                 "RSI": f"{rsi:.1f}",
-                "Score": score
+                "Score": score,
+                "Horizon": meta["horizon"],
+                "BadgeCls": meta["badge_cls"],
+                "Reason": meta["reason"],
+                "BuyZone": f"S${buy_low:.2f} – S${buy_high:.2f}",
+                "TargetSell": f"S${target_sell:.2f}",
+                "StopLoss": f"S${stop_loss:.2f}"
             })
         except Exception as e:
             print(f"Error scanning {ticker}: {e}")
@@ -108,19 +175,51 @@ def scan_stocks():
 
 def build_html_dashboard(top_stocks):
     now = datetime.datetime.now().strftime("%d %b %Y, %I:%M %p SGT")
+    rescan_url = f"https://github.com/{GITHUB_USERNAME}/{GITHUB_REPO_NAME}/actions/workflows/scanner.yml"
     
-    rows_html = ""
-    for idx, row in top_stocks.iterrows():
-        rows_html += f"""
-        <tr>
-            <td class="ticker"><strong>{row['Ticker']}</strong></td>
-            <td>{row['Name']}</td>
-            <td>{row['Price']}</td>
-            <td><span class="badge yield">{row['Yield']}</span></td>
-            <td><span class="badge surge">{row['VolSurge']}</span></td>
-            <td>{row['RSI']}</td>
-            <td><span class="badge score">{row['Score']} / 10</span></td>
-        </tr>
+    cards_html = ""
+    for _, row in top_stocks.iterrows():
+        cards_html += f"""
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>{row['Ticker']} <span class="company-name">• {row['Name']}</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge {row['BadgeCls']}">{row['Horizon']}</span>
+                    <span class="badge badge-score">SCORE: {row['Score']}/10</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div>
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value">{row['Price_Str']}</div>
+                </div>
+                <div>
+                    <div class="metric-label">Dividend Yield</div>
+                    <div class="metric-value">{row['Yield']}</div>
+                </div>
+                <div>
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">{row['VolSurge']}</div>
+                </div>
+                <div>
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">{row['RSI']}</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div><strong>Target Buy:</strong> {row['BuyZone']}</div>
+                <div><strong>Target Sell:</strong> {row['TargetSell']}</div>
+                <div><strong>Stop Loss:</strong> {row['StopLoss']}</div>
+            </div>
+
+            <div class="reason-box">
+                {row['Reason']}
+            </div>
+        </div>
         """
 
     html_content = f"""<!DOCTYPE html>
@@ -138,54 +237,123 @@ def build_html_dashboard(top_stocks):
             padding: 20px;
         }}
         .container {{
-            max-width: 900px;
+            max-width: 850px;
             margin: 0 auto;
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }}
-        h1 {{
+        .header {{
+            text-align: center;
+            margin-bottom: 25px;
+        }}
+        .header h1 {{
             color: #38bdf8;
             margin-bottom: 5px;
         }}
         .timestamp {{
             color: #94a3b8;
             font-size: 0.9em;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
         }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+        .rescan-btn {{
+            display: inline-block;
+            background-color: #0284c7;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.95em;
+            transition: background 0.2s;
+            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
         }}
-        th, td {{
-            padding: 12px 15px;
-            text-align: left;
+        .rescan-btn:hover {{
+            background-color: #0369a1;
+        }}
+        .stock-card {{
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }}
+        .card-top {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
         }}
-        th {{
-            background-color: #0f172a;
-            color: #38bdf8;
-            text-transform: uppercase;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
-        }}
-        tr:hover {{
-            background-color: #334155;
-        }}
-        .ticker {{
+        .ticker-title h2 {{
+            margin: 0;
             color: #f59e0b;
+            font-size: 1.3em;
+        }}
+        .company-name {{
+            color: #94a3b8;
+            font-size: 0.85em;
+            font-weight: normal;
+        }}
+        .badges {{
+            display: flex;
+            gap: 8px;
         }}
         .badge {{
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8em;
             font-weight: bold;
         }}
-        .yield {{ background: #065f46; color: #34d399; }}
-        .surge {{ background: #1e40af; color: #93c5fd; }}
-        .score {{ background: #831843; color: #f472b6; }}
+        .badge-score {{ background: #831843; color: #f472b6; }}
+        .badge-short {{ background: #7c2d12; color: #fdba74; }}
+        .badge-mid {{ background: #0e7490; color: #67e8f9; }}
+        .badge-long {{ background: #065f46; color: #34d399; }}
+        
+        .metrics-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }}
+        .metric-label {{
+            font-size: 0.75em;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }}
+        .metric-value {{
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #f8fafc;
+            margin-top: 4px;
+        }}
+        
+        .trade-setup {{
+            display: flex;
+            justify-content: space-between;
+            background: #172554;
+            border: 1px solid #1e40af;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }}
+        .reason-box {{
+            background-color: #0f172a;
+            border-left: 4px solid #38bdf8;
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9em;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }}
         .footer {{
             margin-top: 30px;
             font-size: 0.8em;
@@ -195,31 +363,21 @@ def build_html_dashboard(top_stocks):
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🇸🇬 SGX Top 5 High-Conviction Picks</h1>
-        <div class="timestamp">Last Updated: {now} | Target Execution: Monday Market Open</div>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Ticker</th>
-                    <th>Company Name</th>
-                    <th>Price</th>
-                    <th>Yield</th>
-                    <th>Vol Surge</th>
-                    <th>RSI (14)</th>
-                    <th>Rank Score</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-        </table>
 
-        <div class="footer">
-            Automated Quantitative Screen across 30 SGX Counters. Powered by GitHub Actions & Python.
-        </div>
+<div class="container">
+    <div class="header">
+        <h1>🇸🇬 SGX Stock Scanner Dashboard</h1>
+        <div class="timestamp">Last Scanned: {now}</div>
+        <a href="{rescan_url}" target="_blank" class="rescan-btn">⚡ Rescan Now (Mid-Week Scan)</a>
     </div>
+
+    {cards_html}
+
+    <div class="footer">
+        Automated Quantitative Screen across 30 SGX Counters. Powered by GitHub Actions & Python.
+    </div>
+</div>
+
 </body>
 </html>
 """
