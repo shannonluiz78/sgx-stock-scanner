@@ -85,7 +85,15 @@ STOCK_METADATA = {
     }
 }
 
-TICKERS = ["G13.SI", "OU8.SI", "BS6.SI", "U11.SI", "C52.SI"]
+# ✅ UPDATED (Add as many SGX tickers as you want):
+TICKERS = [
+    "G13.SI", "OU8.SI", "BS6.SI", "U11.SI", "C52.SI",
+    "D05.SI", "O39.SI", "Z74.SI", "A17U.SI", "C38N.SI",
+    "N2IU.SI", "ME8U.SI", "S68.SI", "F34.SI", "S58.SI",
+    "U96.SI", "BN4.SI", "V03.SI", "S10.SI", "H78.SI",
+    "Y92.SI", "J36.SI", "C6L.SI", "S63.SI", "D01.SI",
+    "AW4.SI", "M44U.SI", "Q04.SI", "S41.SI", "A17.SI"
+]
 
 DEFAULT_META = {
     "horizon": "📈 MID-TERM (1–3 YRS)",
