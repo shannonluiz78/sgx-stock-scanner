@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import json
-import os
+import time
 
 # ==========================================
 # 1. DEFINITION OF THE 8 AGREED SGX STOCKS
@@ -20,98 +20,124 @@ STOCKS = [
 
 
 # ==========================================
-# 2. SAFE DATA EXTRACTION HELPERS
+# 2. BULLETPROOF DATA EXTRACTION HELPERS
 # ==========================================
 def get_safe_financial_row(df, keywords):
-    """Searches a yfinance DataFrame for rows matching keyword lists to avoid KeyError."""
-    if df is None or df.empty:
+    """Searches a yfinance DataFrame for rows matching keywords safely, ensuring a 1D Series even if index labels duplicate."""
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     for idx in df.index:
         idx_str = str(idx).lower()
         if any(kw.lower() in idx_str for kw in keywords):
-            return df.loc[idx]
+            res = df.loc[idx]
+            if isinstance(res, pd.DataFrame):
+                res = res.iloc[0]
+            return res
     return None
 
+def extract_scalar(val):
+    """Converts any pandas/numpy scalar or single-element Series/array to float cleanly."""
+    if val is None or pd.isna(val):
+        return None
+    if isinstance(val, (pd.Series, np.ndarray, list)):
+        if len(val) == 0:
+            return None
+        val = val.iloc[0] if hasattr(val, 'iloc') else val[0]
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
 def fetch_stock_details(item):
-    """Fetches key financial metrics, 5y price history, and 5y financials safely."""
+    """Fetches stock data, 5y price history, and 5y financials safely with robust fallbacks."""
     ticker_symbol = item["ticker"]
-    print(f"Fetching data for: {ticker_symbol} ({item['name']})...")
+    print(f"Processing: {ticker_symbol} ({item['name']})...")
     
-    t = yf.Ticker(ticker_symbol)
-    
-    # --- Fetch Info ---
-    try:
-        info = t.info or {}
-    except Exception as e:
-        print(f"  [Warning] Info fetch failed for {ticker_symbol}: {e}")
-        info = {}
-
-    # Extract Key Metrics safely
-    price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose') or 0.0
-    pe_ratio = info.get('trailingPE')
-    pb_ratio = info.get('priceToBook')
-    
-    div_yield = info.get('dividendYield')
-    if div_yield is not None:
-        if div_yield < 1.0:
-            div_yield = round(div_yield * 100, 2)
-        else:
-            div_yield = round(div_yield, 2)
-    else:
-        div_yield = "N/A"
-
-    # --- Fetch 5-Year Price History ---
-    hist_dates = []
-    hist_prices = []
-    try:
-        hist = t.history(period="5y")
-        if not hist.empty:
-            # Resample weekly to keep HTML payload lightweight
-            hist_weekly = hist['Close'].resample('W').last().dropna()
-            hist_dates = [d.strftime('%Y-%m-%d') for d in hist_weekly.index]
-            hist_prices = [round(p, 3) for p in hist_weekly.values]
-    except Exception as e:
-        print(f"  [Warning] Price history fetch failed for {ticker_symbol}: {e}")
-
-    # --- Fetch 5-Year Financial Statements ---
-    fin_years = []
-    fin_revenue = []
-    fin_net_income = []
-    try:
-        financials = t.financials
-        if financials is not None and not financials.empty:
-            rev_row = get_safe_financial_row(financials, ['total revenue', 'operating revenue', 'revenue'])
-            net_row = get_safe_financial_row(financials, ['net income', 'net income common stockholders'])
-
-            if rev_row is not None:
-                # Sort dates chronologically
-                sorted_dates = sorted(rev_row.index)
-                for date_col in sorted_dates:
-                    year_label = str(date_col)[:4] if hasattr(date_col, 'year') else str(date_col)
-                    rev_val = rev_row[date_col]
-                    net_val = net_row[date_col] if (net_row is not None and date_col in net_row) else 0
-
-                    if not pd.isna(rev_val):
-                        fin_years.append(year_label)
-                        fin_revenue.append(round(float(rev_val) / 1e9, 2)) # in SGD Billions
-                        fin_net_income.append(round(float(net_val) / 1e9, 2) if not pd.isna(net_val) else 0.0)
-    except Exception as e:
-        print(f"  [Warning] Financials fetch failed for {ticker_symbol}: {e}")
-
-    return {
+    record = {
         "ticker": ticker_symbol,
         "name": item["name"],
         "sector": item["sector"],
-        "price": f"SGD {price:.2f}" if isinstance(price, (int, float)) and price > 0 else "N/A",
-        "pe": f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else "N/A",
-        "pb": f"{pb_ratio:.2f}" if isinstance(pb_ratio, (int, float)) else "N/A",
-        "div_yield": f"{div_yield}%" if div_yield != "N/A" else "N/A",
-        "hist_dates": hist_dates,
-        "hist_prices": hist_prices,
-        "fin_years": fin_years,
-        "fin_revenue": fin_revenue,
-        "fin_net_income": fin_net_income
+        "price": "N/A",
+        "pe": "N/A",
+        "pb": "N/A",
+        "div_yield": "N/A",
+        "hist_dates": [],
+        "hist_prices": [],
+        "fin_years": [],
+        "fin_revenue": [],
+        "fin_net_income": []
     }
+    
+    try:
+        t = yf.Ticker(ticker_symbol)
+        
+        # 1. Fetch Info
+        info = {}
+        try:
+            info = t.info or {}
+        except Exception as e:
+            print(f"  [Warning] Info fetch failed for {ticker_symbol}: {e}")
+
+        raw_price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose') or info.get('navPrice')
+        raw_pe = info.get('trailingPE')
+        raw_pb = info.get('priceToBook')
+        raw_div = info.get('dividendYield')
+
+        if raw_price is not None:
+            record["price"] = f"SGD {float(raw_price):.2f}"
+        if raw_pe is not None:
+            record["pe"] = f"{float(raw_pe):.2f}"
+        if raw_pb is not None:
+            record["pb"] = f"{float(raw_pb):.2f}"
+        
+        if raw_div is not None:
+            div_val = float(raw_div)
+            if div_val < 1.0:
+                div_val *= 100
+            record["div_yield"] = f"{div_val:.2f}%"
+
+        # 2. Fetch 5-Year Weekly Historical Price
+        try:
+            hist = t.history(period="5y")
+            if not hist.empty and 'Close' in hist.columns:
+                close_series = hist['Close']
+                if isinstance(close_series, pd.DataFrame):
+                    close_series = close_series.iloc[:, 0]
+                
+                weekly = close_series.resample('W').last().dropna()
+                record["hist_dates"] = [d.strftime('%Y-%m-%d') for d in weekly.index]
+                record["hist_prices"] = [round(float(p), 3) for p in weekly.values]
+        except Exception as e:
+            print(f"  [Warning] History fetch failed for {ticker_symbol}: {e}")
+
+        # 3. Fetch Financial Statements
+        try:
+            financials = t.financials
+            if financials is not None and not financials.empty:
+                rev_row = get_safe_financial_row(financials, ['total revenue', 'operating revenue', 'revenue'])
+                net_row = get_safe_financial_row(financials, ['net income', 'net income common stockholders'])
+
+                if rev_row is not None:
+                    sorted_dates = sorted(rev_row.index)
+                    for date_col in sorted_dates:
+                        year_label = str(date_col)[:4] if hasattr(date_col, 'year') else str(date_col)
+                        
+                        rev_val = extract_scalar(rev_row[date_col])
+                        net_val = extract_scalar(net_row[date_col]) if (net_row is not None and date_col in net_row) else 0.0
+
+                        if rev_val is not None:
+                            record["fin_years"].append(year_label)
+                            record["fin_revenue"].append(round(rev_val / 1e9, 2))
+                            record["fin_net_income"].append(round(net_val / 1e9, 2) if net_val is not None else 0.0)
+        except Exception as e:
+            print(f"  [Warning] Financials fetch failed for {ticker_symbol}: {e}")
+
+    except Exception as main_err:
+        print(f"  [Error] Unhandled error processing {ticker_symbol}: {main_err}")
+
+    # Prevent Yahoo Finance rate limiting
+    time.sleep(1.2)
+    return record
 
 
 # ==========================================
@@ -120,7 +146,6 @@ def fetch_stock_details(item):
 def generate_html_dashboard(data_list):
     """Generates a standalone, responsive HTML dashboard featuring all 8 stocks."""
     
-    # Format table rows
     table_rows_html = ""
     for idx, d in enumerate(data_list, 1):
         table_rows_html += f"""
@@ -136,7 +161,6 @@ def generate_html_dashboard(data_list):
         </tr>
         """
 
-    # Convert data list to JSON for embedded Plotly JS rendering
     data_json = json.dumps(data_list)
 
     html_content = f"""<!DOCTYPE html>
@@ -271,3 +295,69 @@ def generate_html_dashboard(data_list):
                             <th class="num">Price</th>
                             <th class="num">P/E</th>
                             <th class="num">P/B</th>
+                            <th class="num">Div Yield</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {table_rows_html}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="controls">
+                <label for="stockSelect"><strong>Select Stock for 5-Year Deep Dive:</strong></label>
+                <select id="stockSelect" onchange="renderCharts()"></select>
+            </div>
+            
+            <div class="chart-grid">
+                <div id="priceChart" style="height:380px;"></div>
+                <div id="financialsChart" style="height:380px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const stocksData = {data_json};
+
+        const selectEl = document.getElementById('stockSelect');
+        stocksData.forEach((s, idx) => {{
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = `${{s.ticker}} - ${{s.name}}`;
+            selectEl.appendChild(opt);
+        }});
+
+        function renderCharts() {{
+            const selectedIdx = selectEl.value;
+            const stock = stocksData[selectedIdx];
+
+            // 1. Price Chart
+            const priceTrace = {{
+                x: stock.hist_dates,
+                y: stock.hist_prices,
+                type: 'scatter',
+                mode: 'lines',
+                line: {{ color: '#38bdf8', width: 2 }},
+                name: 'Price (SGD)'
+            }};
+            
+            const priceLayout = {{
+                title: {{ text: `${{stock.ticker}} - 5-Year Weekly Price Trend`, font: {{ color: '#f8fafc', size: 14 }} }},
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                xaxis: {{ gridcolor: '#334155', color: '#94a3b8' }},
+                yaxis: {{ gridcolor: '#334155', color: '#94a3b8', title: 'Price (SGD)' }},
+                margin: {{ t: 40, b: 40, l: 50, r: 20 }}
+            }};
+
+            Plotly.newPlot('priceChart', [priceTrace], priceLayout, {{responsive: true}});
+
+            // 2. Financials Chart
+            const revTrace = {{
+                x: stock.fin_years,
+                y: stock.fin_revenue,
+                name: 'Revenue (Billion SGD)',
+                type: 'bar',
+                marker: {{ color: '#0
