@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGX Weekly Stock Scanner Dashboard</title>
+    <title>SGX Top 8 Weekly Watchlist Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #1e1b4b 100%);
@@ -14,11 +15,6 @@
             --card-border: rgba(255, 255, 255, 0.08);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
-            --accent-purple: #a855f7;
-            --accent-cyan: #06b6d4;
-            --accent-emerald: #10b981;
-            --accent-rose: #f43f5e;
-            --accent-amber: #f59e0b;
         }
 
         body {
@@ -73,12 +69,6 @@
             box-shadow: 0 8px 20px -4px rgba(168, 85, 247, 0.4);
         }
 
-        .rescan-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px -4px rgba(168, 85, 247, 0.6);
-            background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
-        }
-
         .stock-card {
             background: var(--card-bg);
             backdrop-filter: blur(16px);
@@ -86,14 +76,8 @@
             border: 1px solid var(--card-border);
             border-radius: 20px;
             padding: 24px;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
-            transition: border-color 0.3s ease, transform 0.2s ease;
-        }
-
-        .stock-card:hover {
-            border-color: rgba(168, 85, 247, 0.3);
-            transform: translateY(-2px);
         }
 
         .card-top {
@@ -131,13 +115,33 @@
             border-radius: 30px;
             font-size: 0.78em;
             font-weight: 700;
-            letter-spacing: 0.3px;
         }
 
         .badge-score { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
         .badge-short { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
         .badge-mid { background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); }
         .badge-long { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .chart-wrapper {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-header {
+            font-size: 0.78em;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 120px;
+            width: 100%;
+        }
 
         .metrics-grid {
             display: grid;
@@ -155,7 +159,6 @@
             color: var(--text-secondary);
             text-transform: uppercase;
             font-weight: 700;
-            letter-spacing: 0.5px;
         }
 
         .metric-value {
@@ -165,9 +168,7 @@
             margin-top: 4px;
         }
 
-        .highlight-yield {
-            color: #34d399;
-        }
+        .highlight-yield { color: #34d399; }
 
         .trade-setup {
             display: flex;
@@ -187,15 +188,12 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
+            margin-bottom: 20px;
         }
 
         @media (max-width: 640px) {
-            .analysis-grid {
-                grid-template-columns: 1fr;
-            }
-            .metrics-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .analysis-grid { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         .analysis-box {
@@ -223,6 +221,58 @@
             line-height: 1.5;
         }
 
+        /* Financials Table Styling */
+        .financials-container {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .table-title {
+            font-size: 0.85em;
+            font-weight: 800;
+            color: #38bdf8;
+            margin-bottom: 12px;
+            letter-spacing: 0.3px;
+        }
+
+        .fin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83em;
+        }
+
+        .fin-table tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .fin-table tr:last-child {
+            border-bottom: none;
+        }
+
+        .fin-label {
+            padding: 8px 4px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            width: 40%;
+        }
+
+        .fin-val {
+            padding: 8px 4px;
+            color: var(--text-primary);
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .moat-row {
+            background: rgba(168, 85, 247, 0.08);
+        }
+
+        .moat-text {
+            color: #c084fc;
+        }
+
         .footer {
             margin-top: 40px;
             font-size: 0.82em;
@@ -237,11 +287,114 @@
 <div class="container">
     <div class="header">
         <h1>🇸🇬 SGX Top 8 Weekly Watchlist</h1>
-        <div class="timestamp">Last Updated: 11 Aug 2026, 08:06 AM SGT</div>
+        <div class="timestamp">Last Updated: 11 Aug 2026, 08:22 AM SGT</div>
         <a href="https://github.com/shannonluiz78/sgx-stock-scanner/actions/workflows/scanner.yml" target="_blank" class="rescan-btn">⚡ Rescan Now (Mid-Week)</a>
     </div>
 
     
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>U11.SI <span class="company-name">• UOB Bank</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-long">🏛️ LONG-TERM (3–5+ YRS)</span>
+                    <span class="badge badge-score">SCORE: 10/10</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_U11_SI"></canvas>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-label">Price</div>
+                    <div class="metric-value">S$42.06</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Yield</div>
+                    <div class="metric-value highlight-yield">4.06%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">2.36x</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">43.7</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div>🎯 <strong>Target Buy:</strong> S$40.38 – S$42.06</div>
+                <div>🚀 <strong>Target Sell:</strong> S$48.37</div>
+                <div>🛡️ <strong>Stop Loss:</strong> S$38.70</div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-box catalyst-box">
+                    <div class="analysis-title">🚀 Growth Catalyst</div>
+                    <div class="analysis-text">Citigroup ASEAN consumer portfolio acquisition driving broader regional fee income.</div>
+                </div>
+                <div class="analysis-box fundamentals-box">
+                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
+                    <div class="analysis-text">Steady dividend payout ratio (~50%) with solid non-performing loan (NPL) coverage.</div>
+                </div>
+                <div class="analysis-box technicals-box">
+                    <div class="analysis-title">📉 Technical & Volume Setup</div>
+                    <div class="analysis-text">Long-term bullish trend channel intact; low volatility consolidation near current levels.</div>
+                </div>
+                <div class="analysis-box risks-box">
+                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
+                    <div class="analysis-text">Broader ASEAN macroeconomic slowdown impacting regional credit growth.</div>
+                </div>
+            </div>
+
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 9.1B ➔ S$ 13.9B (CAGR +8.8%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 2.9B ➔ S$ 5.7B (CAGR +14.4%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">S$ 3.8B ➔ S$ 7.1B (Strong)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 1.00 ➔ S$ 1.70 (+70% total dividend growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">5.0% – 6.5% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">S$ 6.5B (Deposit funded)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">S$ 11.2B (Senior bonds)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Wide Moat (Regional Banking Franchise) • 8.8/10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
         <div class="stock-card">
             <div class="card-top">
                 <div class="ticker-title">
@@ -250,6 +403,13 @@
                 <div class="badges">
                     <span class="badge badge-mid">📈 MID-TERM (1–3 YRS)</span>
                     <span class="badge badge-score">SCORE: 10/10</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_G13_SI"></canvas>
                 </div>
             </div>
 
@@ -264,7 +424,7 @@
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">2.09x</div>
+                    <div class="metric-value">2.10x</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">RSI (14)</div>
@@ -296,6 +456,252 @@
                     <div class="analysis-text">Slower-than-expected recovery in high-roller VIP gaming spend.</div>
                 </div>
             </div>
+
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 1.06B ➔ S$ 2.42B (Post-pandemic recovery)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 86M ➔ S$ 611M (CAGR +48.0%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">S$ 240M ➔ S$ 890M (Strong)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 0.02 ➔ S$ 0.04 (+100% recovery growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">7.0% – 9.5% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">S$ 15M</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">S$ 210M (Net Cash S$3.1B)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Wide Moat (Duopoly Gaming License in SG) • 9.0/10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>O39.SI <span class="company-name">• OCBC Bank</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-short">⚡ SHORT-TERM (1–3 MOS)</span>
+                    <span class="badge badge-score">SCORE: 9/10</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_O39_SI"></canvas>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-label">Price</div>
+                    <div class="metric-value">S$31.22</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Yield</div>
+                    <div class="metric-value highlight-yield">3.10%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">1.41x</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">70.7</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div>🎯 <strong>Target Buy:</strong> S$29.97 – S$30.91</div>
+                <div>🚀 <strong>Target Sell:</strong> S$34.34</div>
+                <div>🛡️ <strong>Stop Loss:</strong> S$29.03</div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-box catalyst-box">
+                    <div class="analysis-title">🚀 Growth Catalyst</div>
+                    <div class="analysis-text">Robust wealth management fee inflows and strong capital management buffer.</div>
+                </div>
+                <div class="analysis-box fundamentals-box">
+                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
+                    <div class="analysis-text">P/B ratio remains reasonable (~1.1x) with an attractive yield floor above 5.0%.</div>
+                </div>
+                <div class="analysis-box technicals-box">
+                    <div class="analysis-title">📉 Technical & Volume Setup</div>
+                    <div class="analysis-text">Stock frequently tests and bounces off key 50-day moving average support lines.</div>
+                </div>
+                <div class="analysis-box risks-box">
+                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
+                    <div class="analysis-text">Potential interest rate cuts lowering Net Interest Margin (NIM) growth.</div>
+                </div>
+            </div>
+
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 10.1B ➔ S$ 13.5B (CAGR +7.5%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 3.6B ➔ S$ 7.0B (CAGR +14.2%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">S$ 4.5B ➔ S$ 8.9B (Strong)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 0.48 ➔ S$ 0.84 (+75% total dividend growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">5.0% – 6.5% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">S$ 8.2B (Deposit funded)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">S$ 14.5B (Subordinated debt)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Wide Moat (Regional Wealth Franchise) • 9.0/10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>D05.SI <span class="company-name">• DBS Group</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-short">⚡ SHORT-TERM (1–3 MOS)</span>
+                    <span class="badge badge-score">SCORE: 8/10</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_D05_SI"></canvas>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-label">Price</div>
+                    <div class="metric-value">S$76.66</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Yield</div>
+                    <div class="metric-value highlight-yield">4.17%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">1.20x</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">73.8</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div>🎯 <strong>Target Buy:</strong> S$73.59 – S$75.89</div>
+                <div>🚀 <strong>Target Sell:</strong> S$85.86</div>
+                <div>🛡️ <strong>Stop Loss:</strong> S$71.29</div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-box catalyst-box">
+                    <div class="analysis-title">🚀 Growth Catalyst</div>
+                    <div class="analysis-text">Dominant regional wealth hub engine and commitment to steady quarterly dividend growth.</div>
+                </div>
+                <div class="analysis-box fundamentals-box">
+                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
+                    <div class="analysis-text">Highest Return on Equity (ROE) in Southeast Asia (~18%) with strong capital reserves.</div>
+                </div>
+                <div class="analysis-box technicals-box">
+                    <div class="analysis-title">📉 Technical & Volume Setup</div>
+                    <div class="analysis-text">Strong institutional accumulation; consistently supported by 50-day SMA during pullbacks.</div>
+                </div>
+                <div class="analysis-box risks-box">
+                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
+                    <div class="analysis-text">Global economic slowdown leading to lower loan demand and credit provisions.</div>
+                </div>
+            </div>
+
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 14.5B ➔ S$ 20.1B (CAGR +8.5%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 4.7B ➔ S$ 10.3B (CAGR +17.0%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">S$ 6.1B ➔ S$ 12.8B (Strong)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 1.20 ➔ S$ 2.16 (+80% total dividend growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">5.5% – 7.0% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">S$ 12.4B (Deposit funded)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">S$ 22.1B (Senior notes)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Wide Moat (Dominant Market Share & Cost Advantage) • 9.5/10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <div class="stock-card">
@@ -306,6 +712,13 @@
                 <div class="badges">
                     <span class="badge badge-mid">📈 MID-TERM (1–3 YRS)</span>
                     <span class="badge badge-score">SCORE: 8/10</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_OU8_SI"></canvas>
                 </div>
             </div>
 
@@ -320,7 +733,7 @@
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">2.66x</div>
+                    <div class="metric-value">2.68x</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">RSI (14)</div>
@@ -352,61 +765,148 @@
                     <div class="analysis-text">Regulatory changes in foreign worker quotas or student visa policies.</div>
                 </div>
             </div>
+
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 128M ➔ S$ 207M (CAGR +10.1%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 38M ➔ S$ 153M (CAGR +32.1%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">S$ 52M ➔ S$ 115M (High Margin)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 0.02 ➔ S$ 0.045 (+125% total growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">9.0% – 12.0% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">S$ 82M</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">S$ 680M (Property backed)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Narrow Moat (Regulatory Operating Licenses) • 8.0/10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <div class="stock-card">
             <div class="card-top">
                 <div class="ticker-title">
-                    <h2>C6L.SI <span class="company-name">• Singapore Airlines</span></h2>
+                    <h2>BS6.SI <span class="company-name">• Yangzijiang Shipbuilding</span></h2>
                 </div>
                 <div class="badges">
-                    <span class="badge badge-mid">📈 MID-TERM (1–3 YRS)</span>
+                    <span class="badge badge-short">⚡ SHORT-TERM (1–3 MOS)</span>
                     <span class="badge badge-score">SCORE: 7/10</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_BS6_SI"></canvas>
                 </div>
             </div>
 
             <div class="metrics-grid">
                 <div class="metric-box">
                     <div class="metric-label">Price</div>
-                    <div class="metric-value">S$7.15</div>
+                    <div class="metric-value">S$4.64</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">Yield</div>
-                    <div class="metric-value highlight-yield">5.79%</div>
+                    <div class="metric-value highlight-yield">4.76%</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">1.77x</div>
+                    <div class="metric-value">3.12x</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">31.0</div>
+                    <div class="metric-value">84.2</div>
                 </div>
             </div>
 
             <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> S$6.86 – S$7.08</div>
-                <div>🚀 <strong>Target Sell:</strong> S$8.44</div>
-                <div>🛡️ <strong>Stop Loss:</strong> S$6.44</div>
+                <div>🎯 <strong>Target Buy:</strong> S$4.45 – S$4.59</div>
+                <div>🚀 <strong>Target Sell:</strong> S$5.34</div>
+                <div>🛡️ <strong>Stop Loss:</strong> S$4.22</div>
             </div>
 
             <div class="analysis-grid">
                 <div class="analysis-box catalyst-box">
                     <div class="analysis-title">🚀 Growth Catalyst</div>
-                    <div class="analysis-text">Technical trend alignment supported by positive institutional trading volume.</div>
+                    <div class="analysis-text">Record order backlog into 2028 with higher-margin clean energy vessel contracts.</div>
                 </div>
                 <div class="analysis-box fundamentals-box">
                     <div class="analysis-title">🏛️ Fundamentals & Yield</div>
-                    <div class="analysis-text">Stable market capitalization with consistent historical dividend payouts.</div>
+                    <div class="analysis-text">Strong net cash position; high ROE exceeding 20% with strong dividend coverage.</div>
                 </div>
                 <div class="analysis-box technicals-box">
                     <div class="analysis-title">📉 Technical & Volume Setup</div>
-                    <div class="analysis-text">Moving average convergence indicates a potential trend expansion phase.</div>
+                    <div class="analysis-text">Bullish momentum breakout with institutional volume surge; trading above 20 & 50 SMA.</div>
                 </div>
                 <div class="analysis-box risks-box">
                     <div class="analysis-title">⚠️ Key Risks to Watch</div>
-                    <div class="analysis-text">General SGX market volatility and sector-specific headwinds.</div>
+                    <div class="analysis-text">Fluctuations in steel raw material costs and USD/RMB exchange rate volatility.</div>
                 </div>
+            </div>
+
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">RMB 13.0B ➔ RMB 24.1B (CAGR +13.1%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">RMB 2.5B ➔ RMB 4.1B (CAGR +10.4%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">RMB 3.2B ➔ RMB 5.8B (Robust)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 0.045 ➔ S$ 0.10 (+122% total growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">8.5% – 11.0% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">RMB 3.1B</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">RMB 1.2B (Net Cash Positive)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Narrow Moat (Cost Leadership in Shipbuilding) • 8.0/10</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         
@@ -421,10 +921,17 @@
                 </div>
             </div>
 
+            <div class="chart-wrapper">
+                <div class="chart-header">📈 1-Year Price Trend & Momentum</div>
+                <div class="chart-container">
+                    <canvas id="chart_C52_SI"></canvas>
+                </div>
+            </div>
+
             <div class="metrics-grid">
                 <div class="metric-box">
                     <div class="metric-label">Price</div>
-                    <div class="metric-value">S$1.35</div>
+                    <div class="metric-value">S$1.34</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">Yield</div>
@@ -432,18 +939,18 @@
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">0.50x</div>
+                    <div class="metric-value">0.51x</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">63.6</div>
+                    <div class="metric-value">60.0</div>
                 </div>
             </div>
 
             <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> S$1.30 – S$1.35</div>
-                <div>🚀 <strong>Target Sell:</strong> S$1.65</div>
-                <div>🛡️ <strong>Stop Loss:</strong> S$1.22</div>
+                <div>🎯 <strong>Target Buy:</strong> S$1.29 – S$1.34</div>
+                <div>🚀 <strong>Target Sell:</strong> S$1.63</div>
+                <div>🛡️ <strong>Stop Loss:</strong> S$1.21</div>
             </div>
 
             <div class="analysis-grid">
@@ -464,237 +971,262 @@
                     <div class="analysis-text">Driver shortages and wage inflation impacting overseas operational margins.</div>
                 </div>
             </div>
-        </div>
-        
-        <div class="stock-card">
-            <div class="card-top">
-                <div class="ticker-title">
-                    <h2>U11.SI <span class="company-name">• UOB Bank</span></h2>
-                </div>
-                <div class="badges">
-                    <span class="badge badge-long">🏛️ LONG-TERM (5–10 YRS)</span>
-                    <span class="badge badge-score">SCORE: 7/10</span>
-                </div>
-            </div>
 
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-label">Price</div>
-                    <div class="metric-value">S$42.13</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Yield</div>
-                    <div class="metric-value highlight-yield">4.06%</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">2.31x</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">44.3</div>
-                </div>
-            </div>
-
-            <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> S$40.44 – S$42.13</div>
-                <div>🚀 <strong>Target Sell:</strong> S$48.45</div>
-                <div>🛡️ <strong>Stop Loss:</strong> S$38.76</div>
-            </div>
-
-            <div class="analysis-grid">
-                <div class="analysis-box catalyst-box">
-                    <div class="analysis-title">🚀 Growth Catalyst</div>
-                    <div class="analysis-text">Citigroup ASEAN consumer portfolio acquisition driving broader regional fee income.</div>
-                </div>
-                <div class="analysis-box fundamentals-box">
-                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
-                    <div class="analysis-text">Steady dividend payout ratio (~50%) with solid non-performing loan (NPL) coverage.</div>
-                </div>
-                <div class="analysis-box technicals-box">
-                    <div class="analysis-title">📉 Technical & Volume Setup</div>
-                    <div class="analysis-text">Long-term bullish trend channel intact; low volatility consolidation near current levels.</div>
-                </div>
-                <div class="analysis-box risks-box">
-                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
-                    <div class="analysis-text">Broader ASEAN macroeconomic slowdown impacting regional credit growth.</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stock-card">
-            <div class="card-top">
-                <div class="ticker-title">
-                    <h2>C38U.SI <span class="company-name">• CICT REIT</span></h2>
-                </div>
-                <div class="badges">
-                    <span class="badge badge-mid">📈 MID-TERM (1–3 YRS)</span>
-                    <span class="badge badge-score">SCORE: 7/10</span>
-                </div>
-            </div>
-
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-label">Price</div>
-                    <div class="metric-value">S$2.50</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Yield</div>
-                    <div class="metric-value highlight-yield">6.33%</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">0.74x</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">60.0</div>
-                </div>
-            </div>
-
-            <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> S$2.40 – S$2.48</div>
-                <div>🚀 <strong>Target Sell:</strong> S$2.95</div>
-                <div>🛡️ <strong>Stop Loss:</strong> S$2.25</div>
-            </div>
-
-            <div class="analysis-grid">
-                <div class="analysis-box catalyst-box">
-                    <div class="analysis-title">🚀 Growth Catalyst</div>
-                    <div class="analysis-text">Technical trend alignment supported by positive institutional trading volume.</div>
-                </div>
-                <div class="analysis-box fundamentals-box">
-                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
-                    <div class="analysis-text">Stable market capitalization with consistent historical dividend payouts.</div>
-                </div>
-                <div class="analysis-box technicals-box">
-                    <div class="analysis-title">📉 Technical & Volume Setup</div>
-                    <div class="analysis-text">Moving average convergence indicates a potential trend expansion phase.</div>
-                </div>
-                <div class="analysis-box risks-box">
-                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
-                    <div class="analysis-text">General SGX market volatility and sector-specific headwinds.</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stock-card">
-            <div class="card-top">
-                <div class="ticker-title">
-                    <h2>BS6.SI <span class="company-name">• Yangzijiang Shipbuilding</span></h2>
-                </div>
-                <div class="badges">
-                    <span class="badge badge-short">⚡ SHORT-TERM (1–3 MOS)</span>
-                    <span class="badge badge-score">SCORE: 7/10</span>
-                </div>
-            </div>
-
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-label">Price</div>
-                    <div class="metric-value">S$4.64</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Yield</div>
-                    <div class="metric-value highlight-yield">4.76%</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">3.09x</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">84.2</div>
-                </div>
-            </div>
-
-            <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> S$4.45 – S$4.59</div>
-                <div>🚀 <strong>Target Sell:</strong> S$5.34</div>
-                <div>🛡️ <strong>Stop Loss:</strong> S$4.22</div>
-            </div>
-
-            <div class="analysis-grid">
-                <div class="analysis-box catalyst-box">
-                    <div class="analysis-title">🚀 Growth Catalyst</div>
-                    <div class="analysis-text">Record-high order backlog stretching into 2028 with higher margin green vessel contracts.</div>
-                </div>
-                <div class="analysis-box fundamentals-box">
-                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
-                    <div class="analysis-text">Strong net cash position; high ROE exceeding 20% with strong dividend coverage.</div>
-                </div>
-                <div class="analysis-box technicals-box">
-                    <div class="analysis-title">📉 Technical & Volume Setup</div>
-                    <div class="analysis-text">Bullish momentum breakout with institutional volume surge; trading above 20 & 50 SMA.</div>
-                </div>
-                <div class="analysis-box risks-box">
-                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
-                    <div class="analysis-text">Fluctuations in steel raw material costs and USD/RMB exchange rate volatility.</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stock-card">
-            <div class="card-top">
-                <div class="ticker-title">
-                    <h2>M44U.SI <span class="company-name">• Mapletree Logistics Trust</span></h2>
-                </div>
-                <div class="badges">
-                    <span class="badge badge-mid">📈 MID-TERM (1–3 YRS)</span>
-                    <span class="badge badge-score">SCORE: 7/10</span>
-                </div>
-            </div>
-
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-label">Price</div>
-                    <div class="metric-value">S$1.20</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Yield</div>
-                    <div class="metric-value highlight-yield">6.06%</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Vol Surge</div>
-                    <div class="metric-value">0.30x</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">52.7</div>
-                </div>
-            </div>
-
-            <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> S$1.15 – S$1.19</div>
-                <div>🚀 <strong>Target Sell:</strong> S$1.42</div>
-                <div>🛡️ <strong>Stop Loss:</strong> S$1.08</div>
-            </div>
-
-            <div class="analysis-grid">
-                <div class="analysis-box catalyst-box">
-                    <div class="analysis-title">🚀 Growth Catalyst</div>
-                    <div class="analysis-text">Technical trend alignment supported by positive institutional trading volume.</div>
-                </div>
-                <div class="analysis-box fundamentals-box">
-                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
-                    <div class="analysis-text">Stable market capitalization with consistent historical dividend payouts.</div>
-                </div>
-                <div class="analysis-box technicals-box">
-                    <div class="analysis-title">📉 Technical & Volume Setup</div>
-                    <div class="analysis-text">Moving average convergence indicates a potential trend expansion phase.</div>
-                </div>
-                <div class="analysis-box risks-box">
-                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
-                    <div class="analysis-text">General SGX market volatility and sector-specific headwinds.</div>
-                </div>
+            <div class="financials-container">
+                <div class="table-title">📊 5-Year Financial Performance & Economic Moat</div>
+                <table class="fin-table">
+                    <tbody>
+                        <tr>
+                            <td class="fin-label">Revenue (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 3.2B ➔ S$ 3.88B (CAGR +3.9%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Nett Income (Past 5 Yrs)</td>
+                            <td class="fin-val">S$ 61M ➔ S$ 180M (CAGR +24.1%)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Operating Cash Flow</td>
+                            <td class="fin-val">S$ 380M ➔ S$ 590M (Defensive)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Dividend Trajectory (5 Yrs)</td>
+                            <td class="fin-val highlight-yield">S$ 0.043 ➔ S$ 0.072 (+67% recovery growth)</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Estimated 5-Yr Growth</td>
+                            <td class="fin-val">4.5% – 6.0% p.a.</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Short-Term Debt</td>
+                            <td class="fin-val">S$ 140M</td>
+                        </tr>
+                        <tr>
+                            <td class="fin-label">Long-Term Debt</td>
+                            <td class="fin-val">S$ 290M (Low leverage)</td>
+                        </tr>
+                        <tr class="moat-row">
+                            <td class="fin-label">Economic Moat Score</td>
+                            <td class="fin-val moat-text">Narrow Moat (Public Transport Tenders) • 7.5/10</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         
 
     <div class="footer">
-        Automated Quantitative Screen across 30 SGX Counters. Powered by GitHub Actions & Python.
+        Automated Structured Allocation Screen (2 Blue Chips + 2 Short + 2 Mid + 2 Long). Powered by GitHub Actions & Python.
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        new Chart(document.getElementById('chart_U11_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [37.29, 37.75, 37.59, 37.69, 37.7, 37.91, 37.72, 37.72, 37.69, 37.6, 38.4, 38.8, 38.31, 38.55, 37.79, 38.38, 37.88, 38.06, 38.16, 38.45, 39.0, 39.35, 39.7, 39.25, 39.46, 39.84, 39.9, 39.91, 39.8, 39.9, 39.76, 39.65, 40.07, 40.24, 40.52, 41.69, 43.33, 44.34, 44.38, 43.98, 44.38, 44.95, 43.5, 42.47, 42.66, 42.72, 43.04, 43.0, 43.32, 43.5, 43.14, 43.89, 43.88, 43.4, 43.04, 43.25, 43.06, 43.58, 43.3, 42.06],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+        new Chart(document.getElementById('chart_G13_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [0.59, 0.58, 0.59, 0.59, 0.59, 0.59, 0.59, 0.59, 0.6, 0.6, 0.61, 0.62, 0.62, 0.62, 0.61, 0.61, 0.61, 0.61, 0.61, 0.62, 0.62, 0.62, 0.62, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.61, 0.62, 0.62, 0.62, 0.61, 0.62, 0.62, 0.62, 0.62, 0.62, 0.63, 0.63, 0.63, 0.62, 0.63, 0.62, 0.62, 0.62, 0.62, 0.63, 0.63, 0.63, 0.63, 0.63, 0.63, 0.62, 0.62, 0.63],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+        new Chart(document.getElementById('chart_O39_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [23.04, 23.43, 23.24, 23.33, 23.53, 23.51, 23.36, 23.36, 23.16, 23.4, 24.08, 24.53, 24.0, 23.94, 23.4, 23.8, 23.23, 23.34, 23.5, 23.71, 24.26, 24.62, 25.08, 24.63, 25.0, 25.07, 24.95, 24.94, 24.86, 24.88, 24.79, 24.66, 25.08, 25.31, 25.49, 26.34, 26.79, 27.32, 27.43, 27.48, 27.88, 28.36, 28.78, 28.56, 28.69, 28.64, 29.18, 28.9, 29.09, 29.29, 28.93, 29.78, 29.1, 29.13, 28.87, 28.72, 28.63, 29.33, 30.3, 31.22],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+        new Chart(document.getElementById('chart_D05_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [60.76, 62.0, 61.3, 61.75, 62.1, 62.18, 62.0, 62.0, 61.93, 62.84, 64.67, 65.05, 64.14, 63.78, 62.76, 63.76, 61.83, 62.6, 63.24, 63.49, 63.73, 65.01, 66.0, 65.96, 66.29, 66.29, 66.22, 66.07, 65.43, 66.03, 65.4, 65.43, 66.43, 66.76, 66.91, 68.64, 69.1, 70.23, 70.45, 70.79, 72.03, 72.98, 72.48, 71.96, 71.9, 72.0, 73.66, 73.5, 73.94, 74.38, 73.91, 75.0, 74.85, 74.02, 74.45, 74.5, 73.55, 75.08, 76.33, 76.66],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+        new Chart(document.getElementById('chart_OU8_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [1.46, 1.48, 1.45, 1.47, 1.47, 1.52, 1.52, 1.52, 1.47, 1.49, 1.47, 1.45, 1.43, 1.45, 1.42, 1.4, 1.41, 1.44, 1.45, 1.5, 1.49, 1.51, 1.51, 1.5, 1.49, 1.48, 1.47, 1.48, 1.45, 1.48, 1.46, 1.45, 1.46, 1.47, 1.48, 1.5, 1.48, 1.48, 1.56, 1.58, 1.61, 1.66, 1.65, 1.61, 1.57, 1.62, 1.6, 1.62, 1.59, 1.6, 1.57, 1.54, 1.54, 1.56, 1.58, 1.58, 1.63, 1.64, 1.62, 1.69],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+        new Chart(document.getElementById('chart_BS6_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [3.92, 3.94, 3.81, 3.7, 3.78, 3.75, 3.7, 3.7, 3.64, 3.64, 3.58, 3.58, 3.46, 3.54, 3.44, 3.41, 3.37, 3.47, 3.45, 3.6, 3.6, 3.65, 3.65, 3.69, 3.67, 3.55, 3.53, 3.5, 3.5, 3.41, 3.42, 3.43, 3.45, 3.56, 3.56, 3.48, 3.43, 3.41, 3.61, 3.58, 3.57, 3.65, 3.65, 3.63, 3.62, 3.73, 3.94, 4.03, 4.0, 3.97, 3.91, 3.89, 3.87, 3.92, 3.99, 3.96, 3.96, 3.94, 4.2, 4.64],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+        new Chart(document.getElementById('chart_C52_SI').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ["May 18", "May 19", "May 20", "May 21", "May 22", "May 25", "May 26", "May 27", "May 28", "May 29", "Jun 02", "Jun 03", "Jun 04", "Jun 05", "Jun 08", "Jun 09", "Jun 10", "Jun 11", "Jun 12", "Jun 15", "Jun 16", "Jun 17", "Jun 18", "Jun 19", "Jun 22", "Jun 23", "Jun 24", "Jun 25", "Jun 26", "Jun 29", "Jun 30", "Jul 01", "Jul 02", "Jul 03", "Jul 06", "Jul 07", "Jul 08", "Jul 09", "Jul 10", "Jul 13", "Jul 14", "Jul 15", "Jul 16", "Jul 17", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24", "Jul 27", "Jul 28", "Jul 29", "Jul 30", "Jul 31", "Aug 03", "Aug 04", "Aug 05", "Aug 06", "Aug 07", "Aug 11"],
+                datasets: [{
+                    data: [1.27, 1.28, 1.29, 1.29, 1.28, 1.29, 1.29, 1.29, 1.3, 1.29, 1.29, 1.3, 1.29, 1.29, 1.29, 1.29, 1.28, 1.29, 1.29, 1.3, 1.3, 1.31, 1.3, 1.3, 1.3, 1.31, 1.31, 1.33, 1.33, 1.34, 1.34, 1.33, 1.33, 1.34, 1.34, 1.34, 1.32, 1.33, 1.34, 1.35, 1.33, 1.34, 1.34, 1.34, 1.33, 1.32, 1.33, 1.33, 1.32, 1.32, 1.33, 1.35, 1.34, 1.34, 1.34, 1.35, 1.35, 1.34, 1.33, 1.34],
+                    borderColor: '#38bdf8',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    tension: 0.25,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        
+    });
+</script>
 
 </body>
 </html>
