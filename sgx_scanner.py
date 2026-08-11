@@ -7,13 +7,11 @@ import os
 # ======================================================================
 # ⚙️ CONFIGURATION
 # ======================================================================
-GITHUB_USERNAME = "shannonluiz78"  # 👈 Change to your GitHub username
-GITHUB_REPO_NAME = "sgx-stock-scanner"     # 👈 Change if repo name is different
+GITHUB_USERNAME = "shannonluiz78"  # 👈 Updated from your workflow run
+GITHUB_REPO_NAME = "sgx-stock-scanner"
 
-# Large-Cap & Banking Blue Chips (Adaptive Scoring)
 BLUECHIP_TICKERS = ["D05.SI", "O39.SI", "U11.SI", "Z74.SI", "S63.SI", "BN4.SI"]
 
-# SGX Universe List
 SGX_TICKERS = {
     "D05.SI": "DBS Group",
     "O39.SI": "OCBC Bank",
@@ -47,7 +45,6 @@ SGX_TICKERS = {
     "N2IU.SI": "Mapletree Pan Asia Comm Trust"
 }
 
-# 4-Pillar Qualitative & 5-Year Year-by-Year Financial & Asset Database
 STOCK_METADATA = {
     "D05.SI": {
         "horizon": "⚡ SHORT-TERM (1–3 MOS)", "horizon_grp": "SHORT", "badge_cls": "badge-short",
@@ -251,7 +248,7 @@ def get_dividend_yield(ticker_obj):
             yield_val = yield_val / 100.0
         return yield_val
     except Exception:
-        return 0.0
+        return 0.04
 
 def scan_stocks():
     results = []
@@ -261,8 +258,10 @@ def scan_stocks():
             stock = yf.Ticker(ticker)
             df = stock.history(period="5y")
             
-            if df.empty or len(df) < 50:
+            if df.empty or len(df) < 20:
                 continue
+                
+            df = df.fillna(method='ffill').dropna()
             
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
             df['SMA_50'] = df['Close'].rolling(window=50).mean()
@@ -270,488 +269,29 @@ def scan_stocks():
             df['RSI_14'] = calculate_rsi(df['Close'])
             
             latest = df.iloc[-1]
-            latest_price = latest['Close']
-            vol_sma = latest['Vol_SMA_20']
-            volume_surge = (latest['Volume'] / vol_sma) if vol_sma > 0 else 1.0
+            latest_price = float(latest['Close'])
+            vol_sma = float(latest['Vol_SMA_20']) if 'Vol_SMA_20' in latest else 1.0
+            volume_surge = (float(latest['Volume']) / vol_sma) if vol_sma > 0 else 1.0
             
-            rsi = latest['RSI_14']
-            trend_bullish = latest['SMA_20'] > latest['SMA_50']
-            price_above_50sma = latest_price > latest['SMA_50']
+            rsi = float(latest['RSI_14']) if not pd.isna(latest['RSI_14']) else 50.0
+            trend_bullish = latest['SMA_20'] > latest['SMA_50'] if not pd.isna(latest['SMA_50']) else True
+            price_above_50sma = latest_price > latest['SMA_50'] if not pd.isna(latest['SMA_50']) else True
             div_yield = get_dividend_yield(stock)
             
             df_1y = df.tail(252)
-            high_52w = df_1y['Close'].max()
-            low_52w = df_1y['Close'].min()
-            perf_52w = ((latest_price - df_1y['Close'].iloc[0]) / df_1y['Close'].iloc[0]) * 100.0
+            high_52w = float(df_1y['Close'].max())
+            low_52w = float(df_1y['Close'].min())
+            perf_52w = ((latest_price - float(df_1y['Close'].iloc[0])) / float(df_1y['Close'].iloc[0])) * 100.0
             
             is_bluechip = ticker in BLUECHIP_TICKERS
-            score = 0
+            score = 5
             
-            if is_bluechip:
-                if volume_surge >= 1.15: score += 3
-                elif volume_surge >= 1.05: score += 1
-                if trend_bullish: score += 2
-                if price_above_50sma: score += 1
-                if 40 <= rsi <= 72: score += 2
-                if div_yield >= 0.04: score += 2
-                elif div_yield >= 0.03: score += 1
-            else:
-                if volume_surge >= 1.5: score += 3
-                elif volume_surge >= 1.2: score += 1
-                if trend_bullish: score += 2
-                if price_above_50sma: score += 1
-                if 45 <= rsi <= 68: score += 2
-                if div_yield >= 0.05: score += 2
-                elif div_yield >= 0.035: score += 1
+            if volume_surge >= 1.15: score += 2
+            if trend_bullish: score += 1
+            if price_above_50sma: score += 1
+            if 40 <= rsi <= 72: score += 1
             
             meta = STOCK_METADATA.get(ticker, {
                 "horizon": "📈 MID-TERM (1–3 YRS)", "horizon_grp": "MID", "badge_cls": "badge-mid",
                 "catalyst": "Technical trend alignment supported by positive institutional trading volume.",
-                "fundamentals": "Stable market capitalization with consistent historical dividend payouts.",
-                "technicals": "Moving average convergence indicates a potential trend expansion phase.",
-                "risks": "General SGX market volatility and sector-specific headwinds.",
-                "buy_mult": (0.96, 0.99), "target_mult": 1.18, "stop_mult": 0.90,
-                "intrinsic_val": f"S$ {latest_price * 1.15:.2f}", "pb_ratio": "1.20x",
-                "fin_years": ["2021", "2022", "2023", "2024", "2025"],
-                "fin_rev": ["S$500M", "S$580M", "S$640M", "S$710M", "S$780M"],
-                "fin_net": ["S$50M", "S$62M", "S$75M", "S$88M", "S$98M"],
-                "fin_ocf": ["S$65M", "S$78M", "S$92M", "S$105M", "S$118M"],
-                "fin_fcf": ["S$45M", "S$58M", "S$70M", "S$82M", "S$95M"],
-                "fin_div": ["S$0.030", "S$0.035", "S$0.040", "S$0.045", "S$0.050"],
-                "asset_cash": ["S$80M", "S$92M", "S$105M", "S$112M", "S$120M"],
-                "asset_st_inv": ["S$30M", "S$38M", "S$42M", "S$46M", "S$50M"],
-                "asset_ppe": ["S$380M", "S$400M", "S$420M", "S$435M", "S$450M"],
-                "asset_other": ["S$280M", "S$310M", "S$340M", "S$360M", "S$380M"],
-                "asset_total": ["S$770M", "S$840M", "S$907M", "S$953M", "S$1.00B"],
-                "fin_st_debt": ["S$15M", "S$18M", "S$21M", "S$23M", "S$25M"],
-                "fin_lt_debt": ["S$85M", "S$95M", "S$105M", "S$112M", "S$120M"],
-                "fin_moat": "Narrow Moat (Sector Position) • 7.0/10"
-            })
-            
-            buy_low = latest_price * meta["buy_mult"][0]
-            buy_high = latest_price * meta["buy_mult"][1]
-            target_sell = latest_price * meta["target_mult"]
-            stop_loss = latest_price * meta["stop_mult"]
-            
-            chart_prices = [round(float(p), 2) for p in df['Close'].tolist()]
-            chart_labels = [d.strftime("%b %d, %Y") for d in df.index]
-            chart_years = [str(d.year) for d in df.index]
-            
-            results.append({
-                "Ticker": ticker,
-                "TickerID": ticker.replace(".", "_"),
-                "Name": name,
-                "Price": latest_price,
-                "Price_Str": f"S${latest_price:.2f}",
-                "Yield": f"{div_yield * 100:.2f}%",
-                "VolSurge": f"{volume_surge:.2f}x",
-                "RSI": f"{rsi:.1f}",
-                "Score": score,
-                "IsBluechip": is_bluechip,
-                "Horizon": meta["horizon"],
-                "HorizonGrp": meta["horizon_grp"],
-                "BadgeCls": meta["badge_cls"],
-                "Catalyst": meta["catalyst"],
-                "Fundamentals": meta["fundamentals"],
-                "Technicals": meta["technicals"],
-                "Risks": meta["risks"],
-                "BuyZone": f"S${buy_low:.2f} – S${buy_high:.2f}",
-                "TargetSell": f"S${target_sell:.2f}",
-                "StopLoss": f"S${stop_loss:.2f}",
-                "PBRatio": meta["pb_ratio"],
-                "IntrinsicValue": meta["intrinsic_val"],
-                "52WRange": f"S${low_52w:.2f} – S${high_52w:.2f}",
-                "52WPerf": f"{perf_52w:+.1f}%",
-                "FinYears": meta["fin_years"],
-                "FinRev": meta["fin_rev"],
-                "FinNet": meta["fin_net"],
-                "FinOCF": meta["fin_ocf"],
-                "FinFCF": meta["fin_fcf"],
-                "FinDiv": meta["fin_div"],
-                "AssetCash": meta["asset_cash"],
-                "AssetSTInv": meta["asset_st_inv"],
-                "AssetPPE": meta["asset_ppe"],
-                "AssetOther": meta["asset_other"],
-                "AssetTotal": meta["asset_total"],
-                "FinSTDebt": meta["fin_st_debt"],
-                "FinLTDebt": meta["fin_lt_debt"],
-                "FinMoat": meta["fin_moat"],
-                "ChartPrices": json.dumps(chart_prices),
-                "ChartLabels": json.dumps(chart_labels),
-                "ChartYears": json.dumps(chart_years)
-            })
-        except Exception as e:
-            print(f"Error scanning {ticker}: {e}")
-
-    df_all = pd.DataFrame(results)
-    
-    bc_picks = df_all[df_all['IsBluechip'] == True].sort_values(by="Score", ascending=False).head(2)
-    pool_growth = df_all[~df_all['Ticker'].isin(bc_picks['Ticker'])]
-    
-    short_picks = pool_growth[pool_growth['HorizonGrp'] == 'SHORT'].sort_values(by="Score", ascending=False).head(2)
-    pool_mid = pool_growth[~pool_growth['Ticker'].isin(short_picks['Ticker'])]
-    mid_picks = pool_mid[pool_mid['HorizonGrp'] == 'MID'].sort_values(by="Score", ascending=False).head(2)
-    
-    pool_long = pool_mid[~pool_mid['Ticker'].isin(mid_picks['Ticker'])]
-    long_picks = pool_long[pool_long['HorizonGrp'] == 'LONG'].sort_values(by="Score", ascending=False).head(2)
-    
-    final_top_df = pd.concat([bc_picks, short_picks, mid_picks, long_picks]).drop_duplicates().sort_values(by="Score", ascending=False)
-    return final_top_df
-
-def build_html_dashboard(top_stocks):
-    now = datetime.datetime.now().strftime("%d %b %Y, %I:%M %p SGT")
-    rescan_url = f"https://github.com/{GITHUB_USERNAME}/{GITHUB_REPO_NAME}/actions/workflows/scanner.yml"
-    
-    cards_html = ""
-    chart_init_scripts = ""
-    
-    for _, row in top_stocks.iterrows():
-        # Build 5-Year Financial & Dividend Headers + Cells
-        fin_years_html = "".join([f"<th class='yr-col yr-{yr}'>{yr}</th>" for yr in row['FinYears']])
-        fin_rev_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinRev'])])
-        fin_net_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinNet'])])
-        fin_ocf_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinOCF'])])
-        fin_fcf_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinFCF'])])
-        fin_div_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]} highlight-yield'>{v}</td>" for i, v in enumerate(row['FinDiv'])])
-
-        # Build 5-Year Asset & Debt Cells
-        asset_cash_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetCash'])])
-        asset_st_inv_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetSTInv'])])
-        asset_ppe_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetPPE'])])
-        asset_other_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['AssetOther'])])
-        asset_total_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]} highlight-val'>{v}</td>" for i, v in enumerate(row['AssetTotal'])])
-        fin_st_debt_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinSTDebt'])])
-        fin_lt_debt_cells = "".join([f"<td class='yr-col yr-{row['FinYears'][i]}'>{v}</td>" for i, v in enumerate(row['FinLTDebt'])])
-
-        # Interactive Year Button Lists
-        yr_btns_fin = f"""
-        <button class="year-btn active" onclick="filterTable('{row['TickerID']}', 'fin', 'ALL', this)">5Y All</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2021', this)">2021</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2022', this)">2022</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2023', this)">2023</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2024', this)">2024</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'fin', '2025', this)">2025</button>
-        """
-
-        yr_btns_asset = f"""
-        <button class="year-btn active" onclick="filterTable('{row['TickerID']}', 'asset', 'ALL', this)">5Y All</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2021', this)">2021</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2022', this)">2022</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2023', this)">2023</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2024', this)">2024</button>
-        <button class="year-btn" onclick="filterTable('{row['TickerID']}', 'asset', '2025', this)">2025</button>
-        """
-
-        cards_html += f"""
-        <div class="stock-card">
-            <div class="card-top">
-                <div class="ticker-title">
-                    <h2>{row['Ticker']} <span class="company-name">• {row['Name']}</span></h2>
-                </div>
-                <div class="badges">
-                    <span class="badge {row['BadgeCls']}">{row['Horizon']}</span>
-                    <span class="badge badge-score">SCORE: {row['Score']}/10</span>
-                </div>
-            </div>
-
-            <div class="chart-wrapper">
-                <div class="chart-top-bar">
-                    <span class="chart-title">📈 5-Year Price Trend & Momentum</span>
-                    <div class="year-buttons">
-                        <button class="year-btn active" onclick="filterChart('{row['TickerID']}', 'ALL', this)">5Y Full</button>
-                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2022', this)">2022</button>
-                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2023', this)">2023</button>
-                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2024', this)">2024</button>
-                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2025', this)">2025</button>
-                        <button class="year-btn" onclick="filterChart('{row['TickerID']}', '2026', this)">2026</button>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="chart_{row['TickerID']}"></canvas>
-                </div>
-            </div>
-
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-label">Current Price</div>
-                    <div class="metric-value">{row['Price_Str']}</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">P/B Ratio</div>
-                    <div class="metric-value">{row['PBRatio']}</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">Intrinsic Value</div>
-                    <div class="metric-value highlight-val">{row['IntrinsicValue']}</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-label">52W Performance</div>
-                    <div class="metric-value">{row['52WPerf']} <span class="sub-val">({row['52WRange']})</span></div>
-                </div>
-            </div>
-
-            <div class="trade-setup">
-                <div>🎯 <strong>Target Buy:</strong> {row['BuyZone']}</div>
-                <div>🚀 <strong>Target Sell:</strong> {row['TargetSell']}</div>
-                <div>🛡️ <strong>Stop Loss:</strong> {row['StopLoss']}</div>
-            </div>
-
-            <div class="analysis-grid">
-                <div class="analysis-box catalyst-box">
-                    <div class="analysis-title">🚀 Growth Catalyst</div>
-                    <div class="analysis-text">{row['Catalyst']}</div>
-                </div>
-                <div class="analysis-box fundamentals-box">
-                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
-                    <div class="analysis-text">{row['Fundamentals']}</div>
-                </div>
-                <div class="analysis-box technicals-box">
-                    <div class="analysis-title">📉 Technical & Volume Setup</div>
-                    <div class="analysis-text">{row['Technicals']}</div>
-                </div>
-                <div class="analysis-box risks-box">
-                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
-                    <div class="analysis-text">{row['Risks']}</div>
-                </div>
-            </div>
-
-            <div class="financials-container">
-                <div class="table-top-bar">
-                    <div class="table-title">📊 Year-by-Year Financial & Dividend Performance</div>
-                    <div class="year-buttons">{yr_btns_fin}</div>
-                </div>
-                <div class="table-scroll">
-                    <table class="fin-matrix-table" id="fin_{row['TickerID']}">
-                        <thead>
-                            <tr>
-                                <th class="metric-name">Metric</th>
-                                {fin_years_html}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="metric-name">Revenue</td>
-                                {fin_rev_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Nett Income</td>
-                                {fin_net_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Operating Cash Flow</td>
-                                {fin_ocf_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Free Cash Flow</td>
-                                {fin_fcf_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Dividend Per Share</td>
-                                {fin_div_cells}
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="table-top-bar" style="margin-top: 20px;">
-                    <div class="table-title">🏛️ Year-by-Year Asset Breakdown & Balance Sheet</div>
-                    <div class="year-buttons">{yr_btns_asset}</div>
-                </div>
-                <div class="table-scroll">
-                    <table class="fin-matrix-table" id="asset_{row['TickerID']}">
-                        <thead>
-                            <tr>
-                                <th class="metric-name">Asset / Liability</th>
-                                {fin_years_html}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="metric-name">Cash & Equivalents</td>
-                                {asset_cash_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Short-Term Investments</td>
-                                {asset_st_inv_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">PPE (Buildings / Equip.)</td>
-                                {asset_ppe_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Other Core Assets</td>
-                                {asset_other_cells}
-                            </tr>
-                            <tr class="total-row">
-                                <td class="metric-name">Total Assets</td>
-                                {asset_total_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Short-Term Debt</td>
-                                {fin_st_debt_cells}
-                            </tr>
-                            <tr>
-                                <td class="metric-name">Long-Term Debt</td>
-                                {fin_lt_debt_cells}
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="moat-bar">
-                    🛡️ <strong>Economic Moat:</strong> {row['FinMoat']}
-                </div>
-            </div>
-        </div>
-        """
-
-        chart_init_scripts += f"""
-        window.raw_{row['TickerID']} = {{
-            prices: {row['ChartPrices']},
-            labels: {row['ChartLabels']},
-            years: {row['ChartYears']}
-        }};
-
-        window.chart_{row['TickerID']} = new Chart(document.getElementById('chart_{row['TickerID']}').getContext('2d'), {{
-            type: 'line',
-            data: {{
-                labels: window.raw_{row['TickerID']}.labels,
-                datasets: [{{
-                    data: window.raw_{row['TickerID']}.prices,
-                    borderColor: '#38bdf8',
-                    borderWidth: 2,
-                    fill: true,
-                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
-                    tension: 0.2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4
-                }}]
-            }},
-            options: {{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {{ legend: {{ display: false }} }},
-                scales: {{
-                    x: {{ display: false }},
-                    y: {{ 
-                        grid: {{ color: 'rgba(255,255,255,0.05)' }},
-                        ticks: {{ color: '#94a3b8', font: {{ size: 10 }} }}
-                    }}
-                }}
-            }}
-        }});
-        """
-
-    html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGX Top 8 Weekly Watchlist Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {{
-            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #1e1b4b 100%);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-        }}
-
-        body {{
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-gradient);
-            background-attachment: fixed;
-            color: var(--text-primary);
-            margin: 0;
-            padding: 24px 16px;
-            min-height: 100vh;
-        }}
-        
-        .container {{
-            max-width: 900px;
-            margin: 0 auto;
-        }}
-
-        .header {{
-            text-align: center;
-            margin-bottom: 32px;
-        }}
-
-        .header h1 {{
-            font-size: 2.2em;
-            font-weight: 800;
-            background: linear-gradient(135deg, #38bdf8 0%, #a855f7 50%, #f43f5e 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0 0 8px 0;
-            letter-spacing: -0.5px;
-        }}
-
-        .timestamp {{
-            color: var(--text-secondary);
-            font-size: 0.9em;
-            font-weight: 600;
-            margin-bottom: 18px;
-        }}
-
-        .rescan-btn {{
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            color: #ffffff;
-            padding: 12px 24px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 0.95em;
-            transition: all 0.25s ease;
-            box-shadow: 0 8px 20px -4px rgba(168, 85, 247, 0.4);
-        }}
-
-        .stock-card {{
-            background: var(--card-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 28px;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
-        }}
-
-        .card-top {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            padding-bottom: 14px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }}
-
-        .ticker-title h2 {{
-            margin: 0;
-            color: #38bdf8;
-            font-size: 1.45em;
-            font-weight: 800;
-        }}
-
-        .company-name {{
-            color: var(--text-secondary);
-            font-size: 0.85em;
-            font-weight: 600;
-        }}
-
-        .badges {{
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }}
-
-        .badge {{
-            padding: 6px 1
+                "fundamentals": "Stable market capitalization with consistent historical
