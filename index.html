@@ -13,54 +13,123 @@
             padding: 20px;
         }
         .container {
-            max-width: 900px;
+            max-width: 850px;
             margin: 0 auto;
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
-        h1 {
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header h1 {
             color: #38bdf8;
             margin-bottom: 5px;
         }
         .timestamp {
             color: #94a3b8;
             font-size: 0.9em;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+        .rescan-btn {
+            display: inline-block;
+            background-color: #0284c7;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.95em;
+            transition: background 0.2s;
+            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
         }
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
+        .rescan-btn:hover {
+            background-color: #0369a1;
+        }
+        .stock-card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-        th {
-            background-color: #0f172a;
-            color: #38bdf8;
-            text-transform: uppercase;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
-        }
-        tr:hover {
-            background-color: #334155;
-        }
-        .ticker {
+        .ticker-title h2 {
+            margin: 0;
             color: #f59e0b;
+            font-size: 1.3em;
+        }
+        .company-name {
+            color: #94a3b8;
+            font-size: 0.85em;
+            font-weight: normal;
+        }
+        .badges {
+            display: flex;
+            gap: 8px;
         }
         .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8em;
             font-weight: bold;
         }
-        .yield { background: #065f46; color: #34d399; }
-        .surge { background: #1e40af; color: #93c5fd; }
-        .score { background: #831843; color: #f472b6; }
+        .badge-score { background: #831843; color: #f472b6; }
+        .badge-short { background: #7c2d12; color: #fdba74; }
+        .badge-mid { background: #0e7490; color: #67e8f9; }
+        .badge-long { background: #065f46; color: #34d399; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .metric-label {
+            font-size: 0.75em;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+        .metric-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #f8fafc;
+            margin-top: 4px;
+        }
+        
+        .trade-setup {
+            display: flex;
+            justify-content: space-between;
+            background: #172554;
+            border: 1px solid #1e40af;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .reason-box {
+            background-color: #0f172a;
+            border-left: 4px solid #38bdf8;
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9em;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
         .footer {
             margin-top: 30px;
             font-size: 0.8em;
@@ -70,80 +139,225 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🇸🇬 SGX Top 5 High-Conviction Picks</h1>
-        <div class="timestamp">Last Updated: 11 Aug 2026, 07:19 AM SGT | Target Execution: Monday Market Open</div>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Ticker</th>
-                    <th>Company Name</th>
-                    <th>Price</th>
-                    <th>Yield</th>
-                    <th>Vol Surge</th>
-                    <th>RSI (14)</th>
-                    <th>Rank Score</th>
-                </tr>
-            </thead>
-            <tbody>
-                
-        <tr>
-            <td class="ticker"><strong>G13.SI</strong></td>
-            <td>Genting Singapore</td>
-            <td>S$0.63</td>
-            <td><span class="badge yield">645.00%</span></td>
-            <td><span class="badge surge">1.96x</span></td>
-            <td>54.5</td>
-            <td><span class="badge score">10 / 10</span></td>
-        </tr>
-        
-        <tr>
-            <td class="ticker"><strong>OU8.SI</strong></td>
-            <td>Centurion Corp</td>
-            <td>S$1.69</td>
-            <td><span class="badge yield">247.00%</span></td>
-            <td><span class="badge surge">2.41x</span></td>
-            <td>60.6</td>
-            <td><span class="badge score">10 / 10</span></td>
-        </tr>
-        
-        <tr>
-            <td class="ticker"><strong>BS6.SI</strong></td>
-            <td>Yangzijiang Shipbuilding</td>
-            <td>S$4.64</td>
-            <td><span class="badge yield">476.00%</span></td>
-            <td><span class="badge surge">2.92x</span></td>
-            <td>84.2</td>
-            <td><span class="badge score">8 / 10</span></td>
-        </tr>
-        
-        <tr>
-            <td class="ticker"><strong>U11.SI</strong></td>
-            <td>UOB Bank</td>
-            <td>S$42.05</td>
-            <td><span class="badge yield">406.00%</span></td>
-            <td><span class="badge surge">2.12x</span></td>
-            <td>43.6</td>
-            <td><span class="badge score">8 / 10</span></td>
-        </tr>
-        
-        <tr>
-            <td class="ticker"><strong>C52.SI</strong></td>
-            <td>ComfortDelGro</td>
-            <td>S$1.35</td>
-            <td><span class="badge yield">639.00%</span></td>
-            <td><span class="badge surge">0.47x</span></td>
-            <td>63.6</td>
-            <td><span class="badge score">7 / 10</span></td>
-        </tr>
-        
-            </tbody>
-        </table>
 
-        <div class="footer">
-            Automated Quantitative Screen across 30 SGX Counters. Powered by GitHub Actions & Python.
-        </div>
+<div class="container">
+    <div class="header">
+        <h1>🇸🇬 SGX Stock Scanner Dashboard</h1>
+        <div class="timestamp">Last Scanned: 11 Aug 2026, 07:45 AM SGT</div>
+        <a href="https://github.com/shannonluiz78/sgx-stock-scanner/actions/workflows/scanner.yml" target="_blank" class="rescan-btn">⚡ Rescan Now (Mid-Week Scan)</a>
     </div>
+
+    
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>G13.SI <span class="company-name">• Genting Singapore</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-mid">MID-TERM (1–3 YRS)</span>
+                    <span class="badge badge-score">SCORE: 10/10</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div>
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value">S$0.63</div>
+                </div>
+                <div>
+                    <div class="metric-label">Dividend Yield</div>
+                    <div class="metric-value">6.45%</div>
+                </div>
+                <div>
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">2.08x</div>
+                </div>
+                <div>
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">58.3</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div><strong>Target Buy:</strong> S$0.60 – S$0.63</div>
+                <div><strong>Target Sell:</strong> S$0.79</div>
+                <div><strong>Stop Loss:</strong> S$0.57</div>
+            </div>
+
+            <div class="reason-box">
+                <strong>Value Recovery.</strong> Trading near low valuation levels with a strong net-cash balance sheet. RWS 2.0 expansion and resilient tourism volume provide multi-month upside backed by a high dividend yield floor.
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>OU8.SI <span class="company-name">• Centurion Corp</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-mid">MID-TERM (1–3 YRS)</span>
+                    <span class="badge badge-score">SCORE: 8/10</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div>
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value">S$1.69</div>
+                </div>
+                <div>
+                    <div class="metric-label">Dividend Yield</div>
+                    <div class="metric-value">2.47%</div>
+                </div>
+                <div>
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">2.55x</div>
+                </div>
+                <div>
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">60.6</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div><strong>Target Buy:</strong> S$1.61 – S$1.67</div>
+                <div><strong>Target Sell:</strong> S$2.10</div>
+                <div><strong>Stop Loss:</strong> S$1.49</div>
+            </div>
+
+            <div class="reason-box">
+                <strong>Growth & Supply Shortage.</strong> Specialized worker and foreign student accommodation operator benefiting from severe supply shortages across Singapore and the UK. RSI is in the ideal zone for continuation.
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>C6L.SI <span class="company-name">• Singapore Airlines</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-mid">MID-TERM (1–3 YRS)</span>
+                    <span class="badge badge-score">SCORE: 7/10</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div>
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value">S$7.13</div>
+                </div>
+                <div>
+                    <div class="metric-label">Dividend Yield</div>
+                    <div class="metric-value">5.79%</div>
+                </div>
+                <div>
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">1.65x</div>
+                </div>
+                <div>
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">30.6</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div><strong>Target Buy:</strong> S$6.84 – S$7.06</div>
+                <div><strong>Target Sell:</strong> S$8.41</div>
+                <div><strong>Stop Loss:</strong> S$6.42</div>
+            </div>
+
+            <div class="reason-box">
+                Technical trend alignment with solid volume support.
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>C52.SI <span class="company-name">• ComfortDelGro</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-long">LONG-TERM (3–5+ YRS)</span>
+                    <span class="badge badge-score">SCORE: 7/10</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div>
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value">S$1.35</div>
+                </div>
+                <div>
+                    <div class="metric-label">Dividend Yield</div>
+                    <div class="metric-value">6.39%</div>
+                </div>
+                <div>
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">0.49x</div>
+                </div>
+                <div>
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">63.6</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div><strong>Target Buy:</strong> S$1.30 – S$1.35</div>
+                <div><strong>Target Sell:</strong> S$1.65</div>
+                <div><strong>Stop Loss:</strong> S$1.22</div>
+            </div>
+
+            <div class="reason-box">
+                <strong>Defensive Yield.</strong> Global land transport operator winning lucrative overseas public transport contracts in the UK and Australia. Acts as a highly stable, high dividend payer.
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-top">
+                <div class="ticker-title">
+                    <h2>U11.SI <span class="company-name">• UOB Bank</span></h2>
+                </div>
+                <div class="badges">
+                    <span class="badge badge-long">LONG-TERM (5–10 YRS)</span>
+                    <span class="badge badge-score">SCORE: 7/10</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div>
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value">S$42.02</div>
+                </div>
+                <div>
+                    <div class="metric-label">Dividend Yield</div>
+                    <div class="metric-value">4.06%</div>
+                </div>
+                <div>
+                    <div class="metric-label">Vol Surge</div>
+                    <div class="metric-value">2.20x</div>
+                </div>
+                <div>
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">43.4</div>
+                </div>
+            </div>
+
+            <div class="trade-setup">
+                <div><strong>Target Buy:</strong> S$40.34 – S$42.02</div>
+                <div><strong>Target Sell:</strong> S$48.32</div>
+                <div><strong>Stop Loss:</strong> S$38.66</div>
+            </div>
+
+            <div class="reason-box">
+                <strong>Core Income Anchor.</strong> ASEAN expansion continues to drive wealth management and loan growth. Healthy RSI consolidation makes it an attractive steady income compounder.
+            </div>
+        </div>
+        
+
+    <div class="footer">
+        Automated Quantitative Screen across 30 SGX Counters. Powered by GitHub Actions & Python.
+    </div>
+</div>
+
 </body>
 </html>
