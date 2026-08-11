@@ -4,11 +4,11 @@ import datetime
 import os
 
 # ======================================================================
-# ⚙️ CONFIGURATION (SETTINGS AT THE VERY TOP!)
+# ⚙️ CONFIGURATION (SETTINGS AT THE TOP!)
 # ======================================================================
 GITHUB_USERNAME = "shannonluiz78"  # 👈 Change to your GitHub username
 GITHUB_REPO_NAME = "sgx-stock-scanner"     # 👈 Change if your repo name is different
-TOP_STOCKS_COUNT = 8                       # 👈 Expanded to Top 8 Stocks
+TOP_STOCKS_COUNT = 8                       # 👈 Top 8 High-Conviction Picks
 # ======================================================================
 
 # 30-Stock SGX Universe
@@ -45,49 +45,79 @@ SGX_TICKERS = {
     "N2IU.SI": "Mapletree Pan Asia Comm Trust"
 }
 
-# Metadata & Trade Setups for High-Conviction Picks
+# Rich 4-Pillar Analysis Database
 STOCK_METADATA = {
     "BS6.SI": {
         "horizon": "⚡ SHORT-TERM (1–3 MOS)",
         "badge_cls": "badge-short",
-        "reason": "<strong>Momentum Breakout.</strong> Massive volume accumulation driven by record-high order books for eco-friendly container vessels. RSI is elevated, so aim to enter on a minor pullback.",
+        "catalyst": "Record-high order backlog stretching into 2028 with higher margin green vessel contracts.",
+        "fundamentals": "Strong net cash position; high ROE exceeding 20% with strong dividend coverage.",
+        "technicals": "Bullish momentum breakout with institutional volume surge; trading above 20 & 50 SMA.",
+        "risks": "Fluctuations in steel raw material costs and USD/RMB exchange rate volatility.",
         "buy_mult": (0.96, 0.99), "target_mult": 1.15, "stop_mult": 0.91
     },
     "O39.SI": {
         "horizon": "⚡ SHORT-TERM (1–3 MOS)",
         "badge_cls": "badge-short",
-        "reason": "<strong>Swing Trade Opportunity.</strong> Strong institutional support and steady wealth management inflows. Ideal for riding price bounces off major moving average support levels.",
+        "catalyst": "Robust wealth management fee inflows and strong capital management buffer.",
+        "fundamentals": "P/B ratio remains reasonable (~1.1x) with an attractive yield floor above 5.2%.",
+        "technicals": "Stock frequently tests and bounces off key 50-day moving average support lines.",
+        "risks": "Potential interest rate cuts lowering Net Interest Margin (NIM) growth.",
         "buy_mult": (0.96, 0.99), "target_mult": 1.10, "stop_mult": 0.93
     },
     "OU8.SI": {
         "horizon": "📈 MID-TERM (1–3 YRS)",
         "badge_cls": "badge-mid",
-        "reason": "<strong>Growth & Supply Shortage.</strong> Specialized worker and foreign student accommodation operator benefiting from severe supply shortages across Singapore and the UK.",
+        "catalyst": "Acute shortage of foreign worker accommodation in SG and student housing in the UK.",
+        "fundamentals": "Consistent revenue growth with strong occupancy rates exceeding 95% across key markets.",
+        "technicals": "Sustained uptrend structure making higher lows; steady RSI accumulation without spike exhaustion.",
+        "risks": "Regulatory changes in foreign worker quotas or student visa policies.",
         "buy_mult": (0.95, 0.99), "target_mult": 1.24, "stop_mult": 0.88
     },
     "G13.SI": {
         "horizon": "📈 MID-TERM (1–3 YRS)",
         "badge_cls": "badge-mid",
-        "reason": "<strong>Value Recovery.</strong> Trading near low valuation levels with a strong net-cash balance sheet. RWS 2.0 expansion and resilient tourism volume provide multi-month upside.",
+        "catalyst": "Ongoing RWS 2.0 expansion & ongoing recovery in regional flight capacities and Chinese tourism.",
+        "fundamentals": "Pristine balance sheet with over S$3B in net cash providing downside cushion.",
+        "technicals": "Trading near multi-year valuation support zone; low RSI indicates minimal downside risk.",
+        "risks": "Slower-than-expected recovery in high-roller VIP gaming spend.",
         "buy_mult": (0.95, 1.00), "target_mult": 1.24, "stop_mult": 0.89
     },
     "U11.SI": {
         "horizon": "🏛️ LONG-TERM (5–10 YRS)",
         "badge_cls": "badge-long",
-        "reason": "<strong>Core Income Anchor.</strong> Regional ASEAN expansion continues to drive wealth management and loan growth. Healthy RSI consolidation makes it an attractive income compounder.",
+        "catalyst": "Citigroup ASEAN consumer portfolio acquisition driving broader regional fee income.",
+        "fundamentals": "Steady dividend payout ratio (~50%) with solid non-performing loan (NPL) coverage.",
+        "technicals": "Long-term bullish trend channel intact; low volatility consolidation near current levels.",
+        "risks": "Broader ASEAN macroeconomic slowdown impacting regional credit growth.",
         "buy_mult": (0.96, 1.00), "target_mult": 1.15, "stop_mult": 0.92
     },
     "C52.SI": {
         "horizon": "🏛️ LONG-TERM (3–5+ YRS)",
         "badge_cls": "badge-long",
-        "reason": "<strong>Defensive Yield.</strong> Global land transport operator winning lucrative public transport tenders in the UK and Australia. Highly stable, high-dividend defensive stock.",
+        "catalyst": "Winning lucrative long-term overseas public bus/rail tenders in Australia and the UK.",
+        "fundamentals": "Defensive business model with stable cash generation and healthy dividend yield (~5.5%).",
+        "technicals": "Price consolidating inside a tight accumulation range above the 200-day moving average.",
+        "risks": "Driver shortages and wage inflation impacting overseas operational margins.",
         "buy_mult": (0.96, 1.00), "target_mult": 1.22, "stop_mult": 0.90
     },
     "D05.SI": {
         "horizon": "🏛️ LONG-TERM (5–10 YRS)",
         "badge_cls": "badge-long",
-        "reason": "<strong>Dividend Pillar.</strong> Southeast Asia's largest banking network with industry-leading ROE figures. Consistent quarterly payouts make it a foundational portfolio holding.",
+        "catalyst": "Dominant regional wealth hub engine and commitment to steady quarterly dividend growth.",
+        "fundamentals": "Highest Return on Equity (ROE) in Southeast Asia (~18%) with strong capital reserves.",
+        "technicals": "Strong institutional accumulation; consistently supported by 50-day SMA during pullbacks.",
+        "risks": "Global economic slowdown leading to lower loan demand and credit provisions.",
         "buy_mult": (0.96, 0.99), "target_mult": 1.12, "stop_mult": 0.93
+    },
+    "Z74.SI": {
+        "horizon": "📈 MID-TERM (1–3 YRS)",
+        "badge_cls": "badge-mid",
+        "catalyst": "ST25 strategic restructuring plan unlocking value from regional data centers and Optus.",
+        "fundamentals": "Improving free cash flow supporting sustainable dividend payouts and debt reduction.",
+        "technicals": "Rounded bottom reversal pattern emerging with rising 20-day moving average.",
+        "risks": "Competitive pricing pressure in regional mobile markets (e.g., Australia).",
+        "buy_mult": (0.96, 0.99), "target_mult": 1.18, "stop_mult": 0.91
     }
 }
 
@@ -150,11 +180,14 @@ def scan_stocks():
             if div_yield >= 0.05: score += 2
             elif div_yield >= 0.035: score += 1
             
-            # Metadata fallback for stocks not explicitly customized
+            # Default fallback for unlisted metadata tickers
             meta = STOCK_METADATA.get(ticker, {
                 "horizon": "📈 MID-TERM (1–3 YRS)",
                 "badge_cls": "badge-mid",
-                "reason": "Technical trend alignment with solid volume support and dividend backing.",
+                "catalyst": "Technical trend alignment supported by positive institutional trading volume.",
+                "fundamentals": "Stable market capitalization with consistent historical dividend payouts.",
+                "technicals": "Moving average convergence indicates a potential trend expansion phase.",
+                "risks": "General SGX market volatility and sector-specific headwinds.",
                 "buy_mult": (0.96, 0.99), "target_mult": 1.18, "stop_mult": 0.90
             })
             
@@ -174,7 +207,10 @@ def scan_stocks():
                 "Score": score,
                 "Horizon": meta["horizon"],
                 "BadgeCls": meta["badge_cls"],
-                "Reason": meta["reason"],
+                "Catalyst": meta["catalyst"],
+                "Fundamentals": meta["fundamentals"],
+                "Technicals": meta["technicals"],
+                "Risks": meta["risks"],
                 "BuyZone": f"S${buy_low:.2f} – S${buy_high:.2f}",
                 "TargetSell": f"S${target_sell:.2f}",
                 "StopLoss": f"S${stop_loss:.2f}"
@@ -228,8 +264,23 @@ def build_html_dashboard(top_stocks):
                 <div>🛡️ <strong>Stop Loss:</strong> {row['StopLoss']}</div>
             </div>
 
-            <div class="reason-box">
-                {row['Reason']}
+            <div class="analysis-grid">
+                <div class="analysis-box catalyst-box">
+                    <div class="analysis-title">🚀 Growth Catalyst</div>
+                    <div class="analysis-text">{row['Catalyst']}</div>
+                </div>
+                <div class="analysis-box fundamentals-box">
+                    <div class="analysis-title">🏛️ Fundamentals & Yield</div>
+                    <div class="analysis-text">{row['Fundamentals']}</div>
+                </div>
+                <div class="analysis-box technicals-box">
+                    <div class="analysis-title">📉 Technical & Volume Setup</div>
+                    <div class="analysis-text">{row['Technicals']}</div>
+                </div>
+                <div class="analysis-box risks-box">
+                    <div class="analysis-title">⚠️ Key Risks to Watch</div>
+                    <div class="analysis-text">{row['Risks']}</div>
+                </div>
             </div>
         </div>
         """
@@ -268,7 +319,7 @@ def build_html_dashboard(top_stocks):
         }}
         
         .container {{
-            max-width: 860px;
+            max-width: 880px;
             margin: 0 auto;
         }}
 
@@ -321,8 +372,8 @@ def build_html_dashboard(top_stocks):
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--card-border);
             border-radius: 20px;
-            padding: 22px;
-            margin-bottom: 22px;
+            padding: 24px;
+            margin-bottom: 24px;
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
             transition: border-color 0.3s ease, transform 0.2s ease;
         }}
@@ -346,7 +397,7 @@ def build_html_dashboard(top_stocks):
         .ticker-title h2 {{
             margin: 0;
             color: #38bdf8;
-            font-size: 1.4em;
+            font-size: 1.45em;
             font-weight: 800;
         }}
 
@@ -408,25 +459,55 @@ def build_html_dashboard(top_stocks):
         .trade-setup {{
             display: flex;
             justify-content: space-between;
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid rgba(99, 102, 241, 0.25);
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.3);
             padding: 12px 18px;
             border-radius: 12px;
             font-size: 0.9em;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
             flex-wrap: wrap;
             gap: 10px;
             color: #e0e7ff;
         }}
 
-        .reason-box {{
-            background: rgba(15, 23, 42, 0.5);
-            border-left: 4px solid var(--accent-purple);
-            padding: 14px 16px;
-            border-radius: 0 12px 12px 0;
-            font-size: 0.9em;
+        .analysis-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }}
+
+        @media (max-width: 640px) {{
+            .analysis-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .metrics-grid {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
+
+        .analysis-box {{
+            background: rgba(15, 23, 42, 0.55);
+            padding: 12px 14px;
+            border-radius: 12px;
+            border-left: 3px solid #38bdf8;
+        }}
+
+        .catalyst-box {{ border-left-color: #a855f7; }}
+        .fundamentals-box {{ border-left-color: #34d399; }}
+        .technicals-box {{ border-left-color: #38bdf8; }}
+        .risks-box {{ border-left-color: #f43f5e; }}
+
+        .analysis-title {{
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }}
+
+        .analysis-text {{
+            font-size: 0.85em;
             color: #cbd5e1;
-            line-height: 1.6;
+            line-height: 1.5;
         }}
 
         .footer {{
