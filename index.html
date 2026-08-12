@@ -3,146 +3,747 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>SGX Core 8 Financial Dashboard</title>
+    <title>SGX Stock Scanner Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; background: #0f172a; color: #f8fafc; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 24px; }
-        h1 { font-size: 1.75rem; font-weight: 700; margin: 0; color: #38bdf8; }
-        .timestamp { font-size: 0.85rem; color: #94a3b8; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; background: #0b1120; color: #f8fafc; }
+        .container { max-width: 1380px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
+        h1 { font-size: 1.8rem; margin: 0; color: #38bdf8; }
+        .text-muted { color: #94a3b8; font-size: 0.85rem; }
+        .section-title { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; }
+        .rec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 36px; }
+        .rec-card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 16px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; }
+        .rec-card:hover { transform: translateY(-3px); border-color: #38bdf8; }
+        .bucket-tag { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; }
+        .b-anchor { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .b-momentum { background: rgba(250, 204, 21, 0.2); color: #facc15; }
+        .b-growth { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .b-compounder { background: rgba(192, 132, 252, 0.2); color: #c084fc; }
+        .rec-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .rec-ticker { font-size: 1.1rem; font-weight: 800; color: #f8fafc; }
+        .rec-name { font-size: 0.8rem; color: #94a3b8; }
+        .rec-price { font-size: 1.2rem; font-weight: 700; color: #f8fafc; }
+        .rec-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem; color: #cbd5e1; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
+        .chart-container { height: 90px; width: 100%; }
         .table-card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow-x: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
-        th { background: #0f172a; padding: 14px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-        td { padding: 14px 16px; border-bottom: 1px solid #334155; vertical-align: middle; }
-        tr:last-child td { border-bottom: none; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
+        th { background: #0f172a; padding: 14px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155; text-transform: uppercase; font-size: 0.75rem; }
+        td { padding: 12px 16px; border-bottom: 1px solid #334155; vertical-align: middle; }
         tr:hover { background: #26354a; }
-        .text-muted { color: #94a3b8; font-size: 0.8rem; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; }
-        .pos { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
-        .neg { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-        .neu { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .pos { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .neg { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .neu { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+        .signal-tag { font-weight: 700; font-size: 0.75rem; color: #38bdf8; }
+        .btn-detail { background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+        .modal-content { background: #1e293b; max-width: 850px; width: 100%; max-height: 90vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }
+        .close-btn { position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; background: #0f172a; padding: 16px; border-radius: 8px; }
+        .data-table { width: 100%; margin-top: 12px; border: 1px solid #334155; }
+        .data-table th, .data-table td { border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div>
-                <h1>SGX Core 8 Dashboard</h1>
-                <div class="text-muted">Real-time tracking of Singapore's core market pillars</div>
+                <h1>SGX Stock Scanner Dashboard</h1>
+                <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
             </div>
-            <div class="timestamp">Last updated: 2026-08-12 01:23:44 UTC</div>
+            <div class="text-muted">Updated: 2026-08-12 04:14:13 UTC</div>
         </div>
+
+        <div class="section-title">⭐ Top 8 Recommended Opportunities</div>
+        <div class="rec-grid">
+            
+        <div class="rec-card" onclick="openModal('C38U.SI')">
+            <div class="bucket-tag b-anchor">Blue Chip Anchor</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">C38U.SI</div>
+                    <div class="rec-name">CapitaLand Int Comm Trust</div>
+                </div>
+                <div class="rec-price">$2.49</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>BULLISH TREND</strong></span>
+                <span>Div Yield: <strong>6.20%</strong></span>
+                <span>P/B: <strong>1.16</strong></span>
+                <span>Moat: <strong>WIDE MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-C38U_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('C6L.SI')">
+            <div class="bucket-tag b-anchor">Blue Chip Anchor</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">C6L.SI</div>
+                    <div class="rec-name">Singapore Airlines</div>
+                </div>
+                <div class="rec-price">$7.10</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>BULLISH TREND</strong></span>
+                <span>Div Yield: <strong>6.15%</strong></span>
+                <span>P/B: <strong>1.3</strong></span>
+                <span>Moat: <strong>WIDE MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-C6L_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('U11.SI')">
+            <div class="bucket-tag b-momentum">Short-Term Momentum</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">U11.SI</div>
+                    <div class="rec-name">UOB</div>
+                </div>
+                <div class="rec-price">$42.09</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>BULLISH TREND</strong></span>
+                <span>Div Yield: <strong>4.17%</strong></span>
+                <span>P/B: <strong>1.4</strong></span>
+                <span>Moat: <strong>WIDE MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-U11_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('BN4.SI')">
+            <div class="bucket-tag b-momentum">Short-Term Momentum</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">BN4.SI</div>
+                    <div class="rec-name">Keppel Ltd</div>
+                </div>
+                <div class="rec-price">$11.25</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>BULLISH TREND</strong></span>
+                <span>Div Yield: <strong>3.07%</strong></span>
+                <span>P/B: <strong>2.01</strong></span>
+                <span>Moat: <strong>WIDE MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-BN4_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('D01.SI')">
+            <div class="bucket-tag b-growth">Mid-Term Growth</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">D01.SI</div>
+                    <div class="rec-name">DFI Retail Group</div>
+                </div>
+                <div class="rec-price">$3.84</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>NEUTRAL</strong></span>
+                <span>Div Yield: <strong>4.30%</strong></span>
+                <span>P/B: <strong>25.43</strong></span>
+                <span>Moat: <strong>NARROW MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-D01_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('EMI.SI')">
+            <div class="bucket-tag b-growth">Mid-Term Growth</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">EMI.SI</div>
+                    <div class="rec-name">Emperador Inc</div>
+                </div>
+                <div class="rec-price">$0.34</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>BULLISH TREND</strong></span>
+                <span>Div Yield: <strong>84.00%</strong></span>
+                <span>P/B: <strong>2.4</strong></span>
+                <span>Moat: <strong>NARROW MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-EMI_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('ME8U.SI')">
+            <div class="bucket-tag b-compounder">Long-Term Compounder</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">ME8U.SI</div>
+                    <div class="rec-name">Mapletree Industrial Trust</div>
+                </div>
+                <div class="rec-price">$1.91</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>NEUTRAL</strong></span>
+                <span>Div Yield: <strong>6.54%</strong></span>
+                <span>P/B: <strong>1.17</strong></span>
+                <span>Moat: <strong>NARROW MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-ME8U_SI"></canvas>
+            </div>
+        </div>
+        
+        <div class="rec-card" onclick="openModal('N2IU.SI')">
+            <div class="bucket-tag b-compounder">Long-Term Compounder</div>
+            <div class="rec-header">
+                <div>
+                    <div class="rec-ticker">N2IU.SI</div>
+                    <div class="rec-name">Mapletree Pan Asia Comm Trust</div>
+                </div>
+                <div class="rec-price">$1.28</div>
+            </div>
+            <div class="rec-stats">
+                <span>Signal: <strong>NEUTRAL</strong></span>
+                <span>Div Yield: <strong>6.19%</strong></span>
+                <span>P/B: <strong>0.74</strong></span>
+                <span>Moat: <strong>NARROW MOAT</strong></span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-N2IU_SI"></canvas>
+            </div>
+        </div>
+        
+        </div>
+
+        <div class="section-title">📊 Full SGX Stock Universe Scan</div>
         <div class="table-card">
             <table>
                 <thead>
                     <tr>
                         <th>Ticker</th>
-                        <th>Company</th>
+                        <th>Company & Sector</th>
                         <th>Price (SGD)</th>
                         <th>Day Change</th>
+                        <th>Signal</th>
                         <th>Div Yield</th>
-                        <th>P/E Ratio</th>
+                        <th>P/B Ratio</th>
                         <th>Market Cap</th>
-                        <th>52-Wk Range</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     
-    <tr>
-        <td><strong>D05.SI</strong></td>
-        <td>DBS Group Holdings<br><small class="text-muted">Banking</small></td>
-        <td><strong>$76.85</strong></td>
-        <td><span class="badge pos">+$0.04 (+0.05%)</span></td>
-        <td>4.13%</td>
-        <td>19.65</td>
-        <td>$218.56B</td>
-        <td><small>$49.37 - $77.27</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>O39.SI</strong></td>
-        <td>OCBC Bank<br><small class="text-muted">Banking</small></td>
-        <td><strong>$31.26</strong></td>
-        <td><span class="badge neg">-$0.10 (-0.32%)</span></td>
-        <td>3.00%</td>
-        <td>17.97</td>
-        <td>$140.36B</td>
-        <td><small>$16.19 - $31.36</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>U11.SI</strong></td>
-        <td>UOB<br><small class="text-muted">Banking</small></td>
-        <td><strong>$42.34</strong></td>
-        <td><span class="badge pos">+$0.10 (+0.24%)</span></td>
-        <td>4.17%</td>
-        <td>14.70</td>
-        <td>$69.90B</td>
-        <td><small>$33.25 - $45.15</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>Z74.SI</strong></td>
-        <td>Singtel<br><small class="text-muted">Telecommunications</small></td>
-        <td><strong>$4.29</strong></td>
-        <td><span class="badge neg">-$0.01 (-0.23%)</span></td>
-        <td>3.11%</td>
-        <td>12.62</td>
-        <td>$70.22B</td>
-        <td><small>$3.92 - $5.27</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>S68.SI</strong></td>
-        <td>Singapore Exchange<br><small class="text-muted">Financial Services</small></td>
-        <td><strong>$24.90</strong></td>
-        <td><span class="badge neg">-$0.33 (-1.31%)</span></td>
-        <td>1.77%</td>
-        <td>38.31</td>
-        <td>N/A</td>
-        <td><small>$15.62 - $25.25</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>C38U.SI</strong></td>
-        <td>CapitaLand Integrated Comm Trust<br><small class="text-muted">REIT</small></td>
-        <td><strong>$2.50</strong></td>
-        <td><span class="badge neu">$0.00 (0.00%)</span></td>
-        <td>6.20%</td>
-        <td>19.23</td>
-        <td>$19.70B</td>
-        <td><small>$2.17 - $2.57</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>A17U.SI</strong></td>
-        <td>CapitaLand Ascendas REIT<br><small class="text-muted">REIT</small></td>
-        <td><strong>$2.50</strong></td>
-        <td><span class="badge neu">$0.00 (0.00%)</span></td>
-        <td>2.98%</td>
-        <td>15.62</td>
-        <td>$12.49B</td>
-        <td><small>$2.42 - $2.92</small></td>
-    </tr>
-    
-    <tr>
-        <td><strong>C6L.SI</strong></td>
-        <td>Singapore Airlines<br><small class="text-muted">Aviation</small></td>
-        <td><strong>$7.09</strong></td>
-        <td><span class="badge neg">-$0.03 (-0.42%)</span></td>
-        <td>6.15%</td>
-        <td>23.63</td>
-        <td>$22.36B</td>
-        <td><small>$6.21 - $7.92</small></td>
-    </tr>
-    
+        <tr onclick="openModal('D05.SI')" style="cursor: pointer;">
+            <td><strong>D05.SI</strong></td>
+            <td>DBS Group Holdings<br><small class="text-muted">Banking</small></td>
+            <td><strong>$76.40</strong></td>
+            <td><span class="badge neg">-$0.59 (-0.77%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>4.13%</td>
+            <td>3.15</td>
+            <td>$217.28B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('O39.SI')" style="cursor: pointer;">
+            <td><strong>O39.SI</strong></td>
+            <td>OCBC Bank<br><small class="text-muted">Banking</small></td>
+            <td><strong>$31.21</strong></td>
+            <td><span class="badge neg">-$0.15 (-0.48%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>3.00%</td>
+            <td>2.33</td>
+            <td>$140.14B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('U11.SI')" style="cursor: pointer;">
+            <td><strong>U11.SI</strong></td>
+            <td>UOB<br><small class="text-muted">Banking</small></td>
+            <td><strong>$42.09</strong></td>
+            <td><span class="badge neg">-$0.07 (-0.17%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>4.17%</td>
+            <td>1.4</td>
+            <td>$69.49B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('Z74.SI')" style="cursor: pointer;">
+            <td><strong>Z74.SI</strong></td>
+            <td>Singtel<br><small class="text-muted">Telecommunications</small></td>
+            <td><strong>$4.29</strong></td>
+            <td><span class="badge neg">-$0.02 (-0.46%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>3.11%</td>
+            <td>2.56</td>
+            <td>$0</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('S68.SI')" style="cursor: pointer;">
+            <td><strong>S68.SI</strong></td>
+            <td>Singapore Exchange<br><small class="text-muted">Financial Services</small></td>
+            <td><strong>$25.29</strong></td>
+            <td><span class="badge pos">+$0.09 (+0.36%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>1.77%</td>
+            <td>11.44</td>
+            <td>$0</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('C6L.SI')" style="cursor: pointer;">
+            <td><strong>C6L.SI</strong></td>
+            <td>Singapore Airlines<br><small class="text-muted">Aviation</small></td>
+            <td><strong>$7.10</strong></td>
+            <td><span class="badge neg">-$0.05 (-0.70%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>6.15%</td>
+            <td>1.3</td>
+            <td>$22.39B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('BN4.SI')" style="cursor: pointer;">
+            <td><strong>BN4.SI</strong></td>
+            <td>Keppel Ltd<br><small class="text-muted">Conglomerate</small></td>
+            <td><strong>$11.25</strong></td>
+            <td><span class="badge pos">+$0.17 (+1.53%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>3.07%</td>
+            <td>2.01</td>
+            <td>$20.25B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('F34.SI')" style="cursor: pointer;">
+            <td><strong>F34.SI</strong></td>
+            <td>Wilmar International<br><small class="text-muted">Consumer Goods</small></td>
+            <td><strong>$3.95</strong></td>
+            <td><span class="badge neg">-$0.01 (-0.25%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>3.54%</td>
+            <td>0.89</td>
+            <td>$24.66B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('BS6.SI')" style="cursor: pointer;">
+            <td><strong>BS6.SI</strong></td>
+            <td>Yangzijiang Shipbuilding<br><small class="text-muted">Industrials</small></td>
+            <td><strong>$4.69</strong></td>
+            <td><span class="badge pos">+$0.03 (+0.64%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>4.29%</td>
+            <td>2.95</td>
+            <td>$0</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('S63.SI')" style="cursor: pointer;">
+            <td><strong>S63.SI</strong></td>
+            <td>ST Engineering<br><small class="text-muted">Industrials</small></td>
+            <td><strong>$10.30</strong></td>
+            <td><span class="badge pos">+$0.10 (+0.98%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>1.76%</td>
+            <td>12.47</td>
+            <td>$0</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('G13.SI')" style="cursor: pointer;">
+            <td><strong>G13.SI</strong></td>
+            <td>Genting Singapore<br><small class="text-muted">Consumer Services</small></td>
+            <td><strong>$0.64</strong></td>
+            <td><span class="badge pos">+$0.01 (+1.59%)</span></td>
+            <td><span class="signal-tag">NEUTRAL + VOL SURGE</span></td>
+            <td>6.35%</td>
+            <td>0.94</td>
+            <td>$7.74B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('Y92.SI')" style="cursor: pointer;">
+            <td><strong>Y92.SI</strong></td>
+            <td>Thai Beverage<br><small class="text-muted">Consumer Goods</small></td>
+            <td><strong>$0.47</strong></td>
+            <td><span class="badge neu">$0.00 (0.00%)</span></td>
+            <td><span class="signal-tag">OVERBOUGHT</span></td>
+            <td>5.31%</td>
+            <td>N/A</td>
+            <td>$0</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('9CI.SI')" style="cursor: pointer;">
+            <td><strong>9CI.SI</strong></td>
+            <td>CapitaLand Investment<br><small class="text-muted">Real Estate</small></td>
+            <td><strong>$2.71</strong></td>
+            <td><span class="badge neg">-$0.01 (-0.37%)</span></td>
+            <td><span class="signal-tag">OVERBOUGHT</span></td>
+            <td>4.41%</td>
+            <td>1.07</td>
+            <td>$13.53B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('C38U.SI')" style="cursor: pointer;">
+            <td><strong>C38U.SI</strong></td>
+            <td>CapitaLand Int Comm Trust<br><small class="text-muted">REIT</small></td>
+            <td><strong>$2.49</strong></td>
+            <td><span class="badge neg">-$0.02 (-0.80%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>6.20%</td>
+            <td>1.16</td>
+            <td>$19.62B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('A17U.SI')" style="cursor: pointer;">
+            <td><strong>A17U.SI</strong></td>
+            <td>CapitaLand Ascendas REIT<br><small class="text-muted">REIT</small></td>
+            <td><strong>$2.49</strong></td>
+            <td><span class="badge neg">-$0.02 (-0.80%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>2.98%</td>
+            <td>1.11</td>
+            <td>$12.44B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('M44U.SI')" style="cursor: pointer;">
+            <td><strong>M44U.SI</strong></td>
+            <td>Mapletree Logistics Trust<br><small class="text-muted">REIT</small></td>
+            <td><strong>$1.19</strong></td>
+            <td><span class="badge neg">-$0.01 (-0.83%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>6.06%</td>
+            <td>0.94</td>
+            <td>$6.09B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('ME8U.SI')" style="cursor: pointer;">
+            <td><strong>ME8U.SI</strong></td>
+            <td>Mapletree Industrial Trust<br><small class="text-muted">REIT</small></td>
+            <td><strong>$1.91</strong></td>
+            <td><span class="badge neg">-$0.01 (-0.52%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>6.54%</td>
+            <td>1.17</td>
+            <td>$5.45B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('N2IU.SI')" style="cursor: pointer;">
+            <td><strong>N2IU.SI</strong></td>
+            <td>Mapletree Pan Asia Comm Trust<br><small class="text-muted">REIT</small></td>
+            <td><strong>$1.28</strong></td>
+            <td><span class="badge neu">$0.00 (0.00%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>6.19%</td>
+            <td>0.74</td>
+            <td>$6.76B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('J69U.SI')" style="cursor: pointer;">
+            <td><strong>J69U.SI</strong></td>
+            <td>Frasers Centrepoint Trust<br><small class="text-muted">REIT</small></td>
+            <td><strong>$2.21</strong></td>
+            <td><span class="badge neg">-$0.02 (-0.90%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>5.43%</td>
+            <td>0.98</td>
+            <td>$4.51B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('BUOU.SI')" style="cursor: pointer;">
+            <td><strong>BUOU.SI</strong></td>
+            <td>Frasers Logistics & Comm Trust<br><small class="text-muted">REIT</small></td>
+            <td><strong>$0.97</strong></td>
+            <td><span class="badge neu">$0.00 (0.00%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>6.08%</td>
+            <td>0.86</td>
+            <td>$3.69B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('J36.SI')" style="cursor: pointer;">
+            <td><strong>J36.SI</strong></td>
+            <td>Jardine Matheson<br><small class="text-muted">Conglomerate</small></td>
+            <td><strong>$62.04</strong></td>
+            <td><span class="badge neg">-$1.18 (-1.87%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>3.80%</td>
+            <td>0.64</td>
+            <td>$18.23B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('C07.SI')" style="cursor: pointer;">
+            <td><strong>C07.SI</strong></td>
+            <td>Jardine Cycle & Carriage<br><small class="text-muted">Consumer Services</small></td>
+            <td><strong>$28.09</strong></td>
+            <td><span class="badge neg">-$0.33 (-1.16%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>5.11%</td>
+            <td>1.05</td>
+            <td>$11.10B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('U96.SI')" style="cursor: pointer;">
+            <td><strong>U96.SI</strong></td>
+            <td>Sembcorp Industries<br><small class="text-muted">Utilities</small></td>
+            <td><strong>$5.67</strong></td>
+            <td><span class="badge pos">+$0.01 (+0.18%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>4.42%</td>
+            <td>1.82</td>
+            <td>$10.09B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('S58.SI')" style="cursor: pointer;">
+            <td><strong>S58.SI</strong></td>
+            <td>SATS Ltd<br><small class="text-muted">Aviation Services</small></td>
+            <td><strong>$4.68</strong></td>
+            <td><span class="badge neg">-$0.10 (-2.09%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>1.46%</td>
+            <td>2.51</td>
+            <td>$6.96B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('5E2.SI')" style="cursor: pointer;">
+            <td><strong>5E2.SI</strong></td>
+            <td>Seatrium Ltd<br><small class="text-muted">Offshore & Marine</small></td>
+            <td><strong>$2.13</strong></td>
+            <td><span class="badge pos">+$0.01 (+0.47%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>1.42%</td>
+            <td>0.98</td>
+            <td>$7.22B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('C09.SI')" style="cursor: pointer;">
+            <td><strong>C09.SI</strong></td>
+            <td>City Developments Ltd<br><small class="text-muted">Real Estate</small></td>
+            <td><strong>$7.81</strong></td>
+            <td><span class="badge neg">-$0.01 (-0.13%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>3.20%</td>
+            <td>0.75</td>
+            <td>$419.53M</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('U14.SI')" style="cursor: pointer;">
+            <td><strong>U14.SI</strong></td>
+            <td>UOL Group<br><small class="text-muted">Real Estate</small></td>
+            <td><strong>$10.12</strong></td>
+            <td><span class="badge pos">+$0.19 (+1.91%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>1.81%</td>
+            <td>0.73</td>
+            <td>$8.57B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('H78.SI')" style="cursor: pointer;">
+            <td><strong>H78.SI</strong></td>
+            <td>Hongkong Land<br><small class="text-muted">Real Estate</small></td>
+            <td><strong>$8.27</strong></td>
+            <td><span class="badge neg">-$0.05 (-0.60%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>3.25%</td>
+            <td>0.57</td>
+            <td>$17.63B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('D01.SI')" style="cursor: pointer;">
+            <td><strong>D01.SI</strong></td>
+            <td>DFI Retail Group<br><small class="text-muted">Consumer Staples</small></td>
+            <td><strong>$3.84</strong></td>
+            <td><span class="badge neg">-$0.04 (-1.03%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>4.30%</td>
+            <td>25.43</td>
+            <td>$5.20B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('EMI.SI')" style="cursor: pointer;">
+            <td><strong>EMI.SI</strong></td>
+            <td>Emperador Inc<br><small class="text-muted">Consumer Staples</small></td>
+            <td><strong>$0.34</strong></td>
+            <td><span class="badge neu">$0.00 (0.00%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>84.00%</td>
+            <td>2.4</td>
+            <td>$5.43B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('OV8.SI')" style="cursor: pointer;">
+            <td><strong>OV8.SI</strong></td>
+            <td>Sheng Siong Group<br><small class="text-muted">Consumer Staples</small></td>
+            <td><strong>$3.26</strong></td>
+            <td><span class="badge pos">+$0.02 (+0.62%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>2.33%</td>
+            <td>8.01</td>
+            <td>$0</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('AIY.SI')" style="cursor: pointer;">
+            <td><strong>AIY.SI</strong></td>
+            <td>iFAST Corporation<br><small class="text-muted">Fintech / Wealth</small></td>
+            <td><strong>$9.05</strong></td>
+            <td><span class="badge pos">+$0.04 (+0.44%)</span></td>
+            <td><span class="signal-tag">NEUTRAL</span></td>
+            <td>1.14%</td>
+            <td>6.21</td>
+            <td>$2.76B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('MZH.SI')" style="cursor: pointer;">
+            <td><strong>MZH.SI</strong></td>
+            <td>Nanofilm Technologies<br><small class="text-muted">Technology</small></td>
+            <td><strong>$1.18</strong></td>
+            <td><span class="badge pos">+$0.02 (+1.72%)</span></td>
+            <td><span class="signal-tag">BULLISH TREND</span></td>
+            <td>1.03%</td>
+            <td>1.76</td>
+            <td>$769.80M</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
+        <tr onclick="openModal('BSL.SI')" style="cursor: pointer;">
+            <td><strong>BSL.SI</strong></td>
+            <td>Raffles Medical Group<br><small class="text-muted">Healthcare</small></td>
+            <td><strong>$0.88</strong></td>
+            <td><span class="badge neu">$0.00 (0.00%)</span></td>
+            <td><span class="signal-tag">OVERSOLD</span></td>
+            <td>3.43%</td>
+            <td>1.54</td>
+            <td>$1.61B</td>
+            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+        </tr>
+        
                 </tbody>
             </table>
         </div>
     </div>
+
+    <div id="deepDiveModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
+            <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
+            
+            <div class="modal-grid">
+                <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
+                <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
+                <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
+                <div>PPE / Buildings: <strong id="m-ppe">N/A</strong></div>
+                <div>Intrinsic Value: <strong id="m-intrinsic">N/A</strong></div>
+                <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
+            </div>
+
+            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financial & Cash Flow Statement</h3>
+            <table class="data-table">
+                <thead>
+                    <tr id="m-hist-years"><th>Metric</th></tr>
+                </thead>
+                <tbody>
+                    <tr id="m-hist-rev"><td>Revenue</td></tr>
+                    <tr id="m-hist-net"><td>Net Income</td></tr>
+                    <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
+                    <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const stockData = {"D05.SI": {"ticker": "D05.SI", "name": "DBS Group Holdings", "sector": "Banking", "is_anchor": true, "price": 76.4000015258789, "change": -0.589996337890625, "p_change": -0.7663285546869798, "pe_ratio": 19.54, "pb_ratio": 3.15, "div_yield": 4.13, "mkt_cap": "$217.28B", "mkt_cap_raw": 217281609728, "52w_range": "N/A", "ma50": 69.23, "ma200": 59.05, "rsi": 65.2, "vol_surge": false, "intrinsic_val": "$60.61", "moat": "WIDE MOAT", "short_debt": "N/A", "long_debt": "$75.00B", "hist_prices": [48.16, 48.27, 49.3, 49.47, 49.87, 51.31, 52.18, 52.62, 54.67, 56.7, 57.56, 56.02, 52.81, 55.6, 56.73, 55.78, 60.76, 64.14, 66.29, 69.1, 73.94, 76.4], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$16.49B", "$20.13B", "$22.22B", "$22.89B"], "net_income": ["$8.19B", "$10.06B", "$11.29B", "$10.93B"], "ocf": ["N/A", "$2.77B", "$5.41B", "$15.34B", "$11.02B"], "fcf": ["N/A", "$2.10B", "$4.69B", "$14.43B", "$10.50B"], "dividends": [], "assets_cash": "$150.35B", "assets_st_inv": "N/A", "assets_ppe": "$3.21B", "signal": "BULLISH TREND", "scores": {"anchor": 428.0, "momentum": 30, "growth": 15, "compounder": 211.5}}, "O39.SI": {"ticker": "O39.SI", "name": "OCBC Bank", "sector": "Banking", "is_anchor": true, "price": 31.209999084472656, "change": -0.15000152587890625, "p_change": -0.47832118289120606, "pe_ratio": 17.94, "pb_ratio": 2.33, "div_yield": 3.0, "mkt_cap": "$140.14B", "mkt_cap_raw": 140137021440, "52w_range": "N/A", "ma50": 26.7, "ma200": 21.85, "rsi": 67.0, "vol_surge": false, "intrinsic_val": "$26.97", "moat": "WIDE MOAT", "short_debt": "N/A", "long_debt": "$30.74B", "hist_prices": [16.32, 16.32, 16.39, 16.09, 16.3, 16.62, 17.61, 18.31, 19.3, 19.61, 20.68, 21.04, 19.93, 20.84, 22.0, 21.66, 23.04, 24.0, 25.0, 26.79, 29.09, 31.21], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$11.19B", "$13.44B", "$14.44B", "$14.53B"], "net_income": ["N/A", "$5.53B", "$7.02B", "$7.59B", "$7.42B"], "ocf": ["N/A", "$8.93B", "$9.13B", "$3.96B", "$9.12B"], "fcf": ["N/A", "$8.45B", "$8.59B", "$3.35B", "$8.14B"], "dividends": [], "assets_cash": "$45.72B", "assets_st_inv": "N/A", "assets_ppe": "$9.43B", "signal": "BULLISH TREND", "scores": {"anchor": 315.0, "momentum": 30, "growth": 15, "compounder": 155.0}}, "U11.SI": {"ticker": "U11.SI", "name": "UOB", "sector": "Banking", "is_anchor": true, "price": 42.09000015258789, "change": -0.06999969482421875, "p_change": -0.16603343234322898, "pe_ratio": 14.61, "pb_ratio": 1.4, "div_yield": 4.17, "mkt_cap": "$69.49B", "mkt_cap_raw": 69485625344, "52w_range": "N/A", "ma50": 41.34, "ma200": 37.13, "rsi": 40.3, "vol_surge": false, "intrinsic_val": "$44.64", "moat": "WIDE MOAT", "short_debt": "N/A", "long_debt": "$45.26B", "hist_prices": [34.12, 34.62, 34.58, 34.01, 33.64, 34.2, 33.2, 33.62, 34.45, 35.81, 37.53, 37.92, 34.83, 35.89, 36.7, 35.78, 37.29, 38.31, 39.46, 43.33, 43.32, 42.09], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$11.58B", "$13.94B", "$14.30B", "$13.81B"], "net_income": ["N/A", "$4.57B", "$5.71B", "$6.04B", "$4.68B"], "ocf": ["$10.10B", "$10.77B", "$-14.85B", "$1.32B"], "fcf": ["$9.40B", "$9.89B", "$-15.72B", "$46.00M"], "dividends": [], "assets_cash": "$61.87B", "assets_st_inv": "N/A", "assets_ppe": "$8.97B", "signal": "BULLISH TREND", "scores": {"anchor": 432.0, "momentum": 45, "growth": 15, "compounder": 213.5}}, "Z74.SI": {"ticker": "Z74.SI", "name": "Singtel", "sector": "Telecommunications", "is_anchor": true, "price": 4.289999961853027, "change": -0.019999980926513672, "p_change": -0.4640366864825342, "pe_ratio": 12.62, "pb_ratio": 2.56, "div_yield": 3.11, "mkt_cap": "$0", "mkt_cap_raw": 0, "52w_range": "N/A", "ma50": 4.3, "ma200": 4.53, "rsi": 45.8, "vol_surge": false, "intrinsic_val": "$5.27", "moat": "WIDE MOAT", "short_debt": "$694.90M", "long_debt": "$7.84B", "hist_prices": [3.77, 4.14, 4.13, 3.98, 4.05, 4.1, 4.63, 4.49, 4.48, 4.41, 4.49, 4.87, 4.84, 4.86, 4.76, 4.43, 4.76, 4.22, 4.26, 4.27, 4.29, 4.29], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025", "2026"], "revenue": ["N/A", "$14.62B", "$14.13B", "$14.15B", "$14.26B"], "net_income": ["N/A", "$2.23B", "$795.00M", "$4.02B", "$5.61B"], "ocf": ["N/A", "$4.78B", "$4.72B", "$4.61B", "$4.92B"], "fcf": ["N/A", "$2.50B", "$2.36B", "$352.60M", "$2.32B"], "dividends": [], "assets_cash": "$3.47B", "assets_st_inv": "N/A", "assets_ppe": "$41.17B", "signal": "NEUTRAL", "scores": {"anchor": 326.0, "momentum": 15, "growth": 15, "compounder": 175.5}}, "S68.SI": {"ticker": "S68.SI", "name": "Singapore Exchange", "sector": "Financial Services", "is_anchor": true, "price": 25.290000915527344, "change": 0.09000015258789062, "p_change": 0.3571434518235353, "pe_ratio": 38.91, "pb_ratio": 11.44, "div_yield": 1.77, "mkt_cap": "$0", "mkt_cap_raw": 0, "52w_range": "N/A", "ma50": 23.75, "ma200": 19.8, "rsi": 81.8, "vol_surge": false, "intrinsic_val": "$10.08", "moat": "WIDE MOAT", "short_debt": "$628.25M", "long_debt": "$0", "hist_prices": [15.26, 16.04, 16.66, 16.39, 16.46, 16.84, 16.54, 16.46, 16.94, 17.58, 17.44, 18.02, 17.42, 19.31, 20.65, 21.18, 21.14, 21.88, 24.04, 24.01, 23.65, 25.29], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025", "2026"], "revenue": ["N/A", "$1.19B", "$1.23B", "$1.37B", "$1.56B"], "net_income": ["N/A", "$570.89M", "$597.91M", "$647.98M", "$698.41M"], "ocf": ["N/A", "$446.70M", "$615.80M", "$841.67M", "$870.73M"], "fcf": ["N/A", "$392.39M", "$551.23M", "$773.56M", "$788.81M"], "dividends": [], "assets_cash": "$1.81B", "assets_st_inv": "N/A", "assets_ppe": "$215.84M", "signal": "BULLISH TREND", "scores": {"anchor": 192.0, "momentum": 30, "growth": 15, "compounder": 108.5}}, "C6L.SI": {"ticker": "C6L.SI", "name": "Singapore Airlines", "sector": "Aviation", "is_anchor": false, "price": 7.099999904632568, "change": -0.05000019073486328, "p_change": -0.6993033574959804, "pe_ratio": 23.67, "pb_ratio": 1.3, "div_yield": 6.15, "mkt_cap": "$22.39B", "mkt_cap_raw": 22390433792, "52w_range": "N/A", "ma50": 7.47, "ma200": 6.76, "rsi": 32.7, "vol_surge": false, "intrinsic_val": "$4.65", "moat": "WIDE MOAT", "short_debt": "$1.96B", "long_debt": "$5.71B", "hist_prices": [6.47, 6.51, 6.43, 6.44, 6.46, 6.49, 6.4, 6.28, 6.41, 6.4, 6.35, 6.98, 6.49, 6.62, 6.58, 6.31, 6.41, 7.05, 7.33, 7.84, 7.55, 7.1], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025", "2026"], "revenue": ["N/A", "$17.77B", "$19.01B", "$19.54B", "$20.52B"], "net_income": ["N/A", "$2.16B", "$2.67B", "$2.78B", "$1.18B"], "ocf": ["N/A", "$9.13B", "$5.04B", "$4.71B", "$5.10B"], "fcf": ["N/A", "$7.44B", "$3.71B", "$2.83B", "$2.35B"], "dividends": [], "assets_cash": "$7.93B", "assets_st_inv": "N/A", "assets_ppe": "$41.00B", "signal": "BULLISH TREND", "scores": {"anchor": 630.0, "momentum": 30, "growth": 15, "compounder": 327.5}}, "BN4.SI": {"ticker": "BN4.SI", "name": "Keppel Ltd", "sector": "Conglomerate", "is_anchor": false, "price": 11.25, "change": 0.1700000762939453, "p_change": 1.5342967278806665, "pe_ratio": 25.57, "pb_ratio": 2.01, "div_yield": 3.07, "mkt_cap": "$20.25B", "mkt_cap_raw": 20250241024, "52w_range": "N/A", "ma50": 11.13, "ma200": 10.99, "rsi": 47.6, "vol_surge": false, "intrinsic_val": "$6.82", "moat": "WIDE MOAT", "short_debt": "$1.91B", "long_debt": "$9.41B", "hist_prices": [8.16, 8.32, 8.59, 8.8, 9.19, 9.9, 9.69, 9.96, 10.06, 10.47, 10.73, 12.62, 11.6, 12.22, 11.86, 10.8, 10.38, 10.66, 11.14, 10.79, 11.45, 11.25], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$6.62B", "$6.97B", "$5.78B", "$5.98B"], "net_income": ["N/A", "$938.22M", "$4.08B", "$951.72M", "$800.11M"], "ocf": ["$259.59M", "$58.43M", "$200.34M", "$661.55M"], "fcf": ["$-436.62M", "$-862.66M", "$-411.07M", "$147.67M"], "dividends": [], "assets_cash": "$1.23B", "assets_st_inv": "N/A", "assets_ppe": "$4.23B", "signal": "BULLISH TREND", "scores": {"anchor": 322.0, "momentum": 45, "growth": 15, "compounder": 173.5}}, "F34.SI": {"ticker": "F34.SI", "name": "Wilmar International", "sector": "Consumer Goods", "is_anchor": false, "price": 3.950000047683716, "change": -0.009999990463256836, "p_change": -0.2525250092020439, "pe_ratio": 13.62, "pb_ratio": 0.89, "div_yield": 3.54, "mkt_cap": "$24.66B", "mkt_cap_raw": 24659841024, "52w_range": "N/A", "ma50": 3.75, "ma200": 3.48, "rsi": 55.6, "vol_surge": false, "intrinsic_val": "$4.50", "moat": "WIDE MOAT", "short_debt": "$23.44B", "long_debt": "$7.36B", "hist_prices": [2.85, 2.87, 2.85, 2.81, 2.87, 3.13, 3.17, 2.96, 3.02, 3.1, 3.3, 3.48, 3.44, 3.58, 3.77, 3.83, 3.71, 3.49, 3.69, 3.79, 3.89, 3.95], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$73.40B", "$67.16B", "$67.38B", "$70.42B"], "net_income": ["$2.40B", "$1.52B", "$1.17B", "$1.41B"], "ocf": ["N/A", "$2.05B", "$3.89B", "$1.37B", "$2.36B"], "fcf": ["N/A", "$-435.37M", "$1.67B", "$-200.12M", "$1.28B"], "dividends": [], "assets_cash": "$2.89B", "assets_st_inv": "N/A", "assets_ppe": "$27.24B", "signal": "BULLISH TREND", "scores": {"anchor": 369.0, "momentum": 45, "growth": 15, "compounder": 197.0}}, "BS6.SI": {"ticker": "BS6.SI", "name": "Yangzijiang Shipbuilding", "sector": "Industrials", "is_anchor": false, "price": 4.690000057220459, "change": 0.03000020980834961, "p_change": 0.6437813473013771, "pe_ratio": 9.98, "pb_ratio": 2.95, "div_yield": 4.29, "mkt_cap": "$0", "mkt_cap_raw": 0, "52w_range": "N/A", "ma50": 3.7, "ma200": 3.59, "rsi": 82.1, "vol_surge": false, "intrinsic_val": "$7.28", "moat": "MODERATE MOAT", "short_debt": "$5.52B", "long_debt": "$0", "hist_prices": [2.77, 2.78, 3.04, 3.13, 3.03, 3.18, 3.19, 3.21, 3.29, 3.5, 3.19, 3.47, 3.91, 3.73, 3.78, 4.13, 3.92, 3.46, 3.67, 3.43, 4.0, 4.69], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$20.71B", "$24.11B", "$26.54B", "$28.50B"], "net_income": ["N/A", "$2.81B", "$4.10B", "$6.63B", "$8.64B"], "ocf": ["N/A", "$4.63B", "$7.97B", "$12.96B", "$4.46B"], "fcf": ["N/A", "$3.73B", "$7.18B", "$11.90B", "$2.51B"], "dividends": [], "assets_cash": "$20.08B", "assets_st_inv": "N/A", "assets_ppe": "$14.55B", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 30, "growth": 5, "compounder": 234.5}}, "S63.SI": {"ticker": "S63.SI", "name": "ST Engineering", "sector": "Industrials", "is_anchor": false, "price": 10.300000190734863, "change": 0.10000038146972656, "p_change": 0.9803959149988177, "pe_ratio": 68.67, "pb_ratio": 12.47, "div_yield": 1.76, "mkt_cap": "$0", "mkt_cap_raw": 0, "52w_range": "N/A", "ma50": 10.64, "ma200": 9.93, "rsi": 45.8, "vol_surge": false, "intrinsic_val": "$2.32", "moat": "MODERATE MOAT", "short_debt": "$1.55B", "long_debt": "$2.60B", "hist_prices": [8.48, 7.52, 8.02, 8.41, 7.95, 8.22, 8.3, 8.12, 8.25, 9.26, 9.67, 10.08, 10.58, 10.84, 11.16, 10.61, 10.75, 11.02, 10.81, 10.89, 10.6, 10.3], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$9.04B", "$10.10B", "$11.28B", "$12.35B"], "net_income": ["N/A", "$535.01M", "$586.47M", "$702.26M", "$462.77M"], "ocf": ["N/A", "$673.10M", "$1.18B", "$1.72B", "$1.71B"], "fcf": ["N/A", "$-293.04M", "$562.64M", "$1.17B", "$1.13B"], "dividends": [], "assets_cash": "$576.44M", "assets_st_inv": "N/A", "assets_ppe": "$5.80B", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 45, "growth": 5, "compounder": 108.0}}, "G13.SI": {"ticker": "G13.SI", "name": "Genting Singapore", "sector": "Consumer Services", "is_anchor": false, "price": 0.6399999856948853, "change": 0.009999990463256836, "p_change": 1.5873000830273334, "pe_ratio": 21.33, "pb_ratio": 0.94, "div_yield": 6.35, "mkt_cap": "$7.74B", "mkt_cap_raw": 7736366080, "52w_range": "N/A", "ma50": 0.62, "ma200": 0.67, "rsi": 58.3, "vol_surge": true, "intrinsic_val": "$0.46", "moat": "NARROW MOAT", "short_debt": "N/A", "long_debt": "$373,000", "hist_prices": [0.7, 0.7, 0.73, 0.71, 0.7, 0.71, 0.71, 0.71, 0.7, 0.71, 0.71, 0.78, 0.65, 0.66, 0.66, 0.69, 0.59, 0.62, 0.61, 0.61, 0.62, 0.64], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$1.73B", "$2.42B", "$2.53B", "$2.45B"], "net_income": ["N/A", "$340.10M", "$611.58M", "$578.87M", "$390.35M"], "ocf": ["N/A", "$806.68M", "$958.52M", "$859.69M", "$789.98M"], "fcf": ["N/A", "$619.65M", "$627.13M", "$430.03M", "$121.02M"], "dividends": [], "assets_cash": "$3.20B", "assets_st_inv": "N/A", "assets_ppe": "$9.24B", "signal": "NEUTRAL + VOL SURGE", "scores": {"anchor": 0, "momentum": 35, "growth": 15, "compounder": 322.5}}, "Y92.SI": {"ticker": "Y92.SI", "name": "Thai Beverage", "sector": "Consumer Goods", "is_anchor": false, "price": 0.4699999988079071, "change": 0.0, "p_change": 0.0, "pe_ratio": 11.75, "pb_ratio": "N/A", "div_yield": 5.31, "mkt_cap": "$0", "mkt_cap_raw": 0, "52w_range": "N/A", "ma50": 0.44, "ma200": 0.44, "rsi": 71.4, "vol_surge": false, "intrinsic_val": "$0.62", "moat": "MODERATE MOAT", "short_debt": "$44.57B", "long_debt": "$183.87B", "hist_prices": [0.45, 0.44, 0.44, 0.44, 0.45, 0.45, 0.44, 0.45, 0.44, 0.44, 0.45, 0.47, 0.43, 0.42, 0.42, 0.41, 0.44, 0.43, 0.44, 0.44, 0.46, 0.47], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$272.36B", "$332.93B", "$340.29B", "$333.29B"], "net_income": ["N/A", "$30.11B", "$27.43B", "$27.22B", "$25.36B"], "ocf": ["N/A", "$45.01B", "$39.10B", "$38.18B", "$46.03B"], "fcf": ["N/A", "$41.51B", "$30.34B", "$28.76B", "$31.96B"], "dividends": [], "assets_cash": "$43.84B", "assets_st_inv": "N/A", "assets_ppe": "$230.49B", "signal": "OVERBOUGHT", "scores": {"anchor": 0, "momentum": 0, "growth": 5, "compounder": 285.5}}, "9CI.SI": {"ticker": "9CI.SI", "name": "CapitaLand Investment", "sector": "Real Estate", "is_anchor": false, "price": 2.7100000381469727, "change": -0.009999990463256836, "p_change": -0.36764670420572804, "pe_ratio": 90.33, "pb_ratio": 1.07, "div_yield": 4.41, "mkt_cap": "$13.53B", "mkt_cap_raw": 13532470272, "52w_range": "N/A", "ma50": 2.56, "ma200": 2.73, "rsi": 77.5, "vol_surge": false, "intrinsic_val": "$0.46", "moat": "WIDE MOAT", "short_debt": "$550.00M", "long_debt": "$7.39B", "hist_prices": [2.75, 2.74, 2.77, 2.69, 2.63, 2.65, 2.6, 2.59, 2.69, 2.94, 3.08, 3.15, 2.82, 2.73, 2.82, 2.8, 2.6, 2.53, 2.52, 2.5, 2.49, 2.71], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$2.88B", "$2.78B", "$2.81B", "$2.13B"], "net_income": ["N/A", "$861.00M", "$181.00M", "$479.00M", "$145.00M"], "ocf": ["N/A", "$735.00M", "$682.00M", "$561.00M", "$491.00M"], "fcf": ["N/A", "$609.00M", "$659.00M", "$276.00M", "$479.00M"], "dividends": [], "assets_cash": "$2.02B", "assets_st_inv": "N/A", "assets_ppe": "$1.11B", "signal": "OVERBOUGHT", "scores": {"anchor": 456.0, "momentum": 0, "growth": 15, "compounder": 240.5}}, "C38U.SI": {"ticker": "C38U.SI", "name": "CapitaLand Int Comm Trust", "sector": "REIT", "is_anchor": true, "price": 2.490000009536743, "change": -0.019999980926513672, "p_change": -0.796811991814162, "pe_ratio": 19.15, "pb_ratio": 1.16, "div_yield": 6.2, "mkt_cap": "$19.62B", "mkt_cap_raw": 19620573184, "52w_range": "N/A", "ma50": 2.4, "ma200": 2.33, "rsi": 53.8, "vol_surge": false, "intrinsic_val": "$2.02", "moat": "WIDE MOAT", "short_debt": "$654.63M", "long_debt": "$9.33B", "hist_prices": [2.12, 2.18, 2.25, 2.23, 2.3, 2.23, 2.25, 2.24, 2.28, 2.34, 2.31, 2.38, 2.27, 2.26, 2.32, 2.39, 2.25, 2.27, 2.33, 2.41, 2.44, 2.49], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$1.44B", "$1.56B", "$1.59B", "$1.62B"], "net_income": ["N/A", "$723.37M", "$862.57M", "$933.68M", "$937.29M"], "ocf": ["N/A", "$1.02B", "$1.08B", "$1.04B", "$1.10B"], "fcf": ["N/A", "$896.15M", "$961.21M", "$865.49M", "$811.35M"], "dividends": [], "assets_cash": "$149.49M", "assets_st_inv": "N/A", "assets_ppe": "$13.48M", "signal": "BULLISH TREND", "scores": {"anchor": 635.0, "momentum": 45, "growth": 15, "compounder": 330.0}}, "A17U.SI": {"ticker": "A17U.SI", "name": "CapitaLand Ascendas REIT", "sector": "REIT", "is_anchor": true, "price": 2.490000009536743, "change": -0.019999980926513672, "p_change": -0.796811991814162, "pe_ratio": 15.56, "pb_ratio": 1.11, "div_yield": 2.98, "mkt_cap": "$12.44B", "mkt_cap_raw": 12438083584, "52w_range": "N/A", "ma50": 2.51, "ma200": 2.6, "rsi": 46.4, "vol_surge": false, "intrinsic_val": "$2.48", "moat": "WIDE MOAT", "short_debt": "$1.71B", "long_debt": "$5.61B", "hist_prices": [2.57, 2.59, 2.73, 2.69, 2.72, 2.69, 2.67, 2.64, 2.68, 2.76, 2.73, 2.65, 2.5, 2.47, 2.54, 2.49, 2.44, 2.5, 2.51, 2.49, 2.49, 2.49], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$1.35B", "$1.48B", "$1.52B", "$1.54B"], "net_income": ["N/A", "$760.39M", "$168.27M", "$764.11M", "$779.72M"], "ocf": ["N/A", "$1.02B", "$956.28M", "$947.83M", "$1.07B"], "fcf": ["N/A", "$1.02B", "$956.28M", "$947.83M", "$1.07B"], "dividends": [], "assets_cash": "$209.44M", "assets_st_inv": "N/A", "assets_ppe": "$604.78M", "signal": "NEUTRAL", "scores": {"anchor": 313.0, "momentum": 15, "growth": 15, "compounder": 169.0}}, "M44U.SI": {"ticker": "M44U.SI", "name": "Mapletree Logistics Trust", "sector": "REIT", "is_anchor": false, "price": 1.190000057220459, "change": -0.009999990463256836, "p_change": -0.8333325047966338, "pe_ratio": 23.8, "pb_ratio": 0.94, "div_yield": 6.06, "mkt_cap": "$6.09B", "mkt_cap_raw": 6092677120, "52w_range": "N/A", "ma50": 1.2, "ma200": 1.22, "rsi": 52.6, "vol_surge": false, "intrinsic_val": "$0.78", "moat": "NARROW MOAT", "short_debt": "$89.06M", "long_debt": "$5.40B", "hist_prices": [1.09, 1.14, 1.19, 1.19, 1.19, 1.25, 1.23, 1.24, 1.24, 1.3, 1.29, 1.24, 1.16, 1.14, 1.16, 1.19, 1.14, 1.17, 1.18, 1.2, 1.18, 1.19], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2023", "2024", "2025", "2026"], "revenue": ["$718.28M", "$722.97M", "$714.78M", "$695.41M"], "net_income": ["$566.58M", "$327.48M", "$207.77M", "$277.11M"], "ocf": ["N/A", "$609.74M", "$573.49M", "$536.03M", "$542.14M"], "fcf": ["N/A", "$609.74M", "$573.49M", "$536.03M", "$542.14M"], "dividends": [], "assets_cash": "$302.27M", "assets_st_inv": "N/A", "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 15, "growth": 15, "compounder": 323.0}}, "ME8U.SI": {"ticker": "ME8U.SI", "name": "Mapletree Industrial Trust", "sector": "REIT", "is_anchor": false, "price": 1.909999966621399, "change": -0.009999990463256836, "p_change": -0.5208328479982144, "pe_ratio": 27.29, "pb_ratio": 1.17, "div_yield": 6.54, "mkt_cap": "$5.45B", "mkt_cap_raw": 5453056512, "52w_range": "N/A", "ma50": 1.91, "ma200": 1.94, "rsi": 57.5, "vol_surge": false, "intrinsic_val": "$1.09", "moat": "NARROW MOAT", "short_debt": "$393.21M", "long_debt": "$1.86B", "hist_prices": [1.86, 1.93, 2.03, 2.01, 2.02, 1.96, 1.92, 1.93, 1.95, 2.01, 2.01, 1.98, 1.89, 1.89, 1.95, 1.91, 1.88, 1.9, 1.92, 1.89, 1.9, 1.91], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025", "2026"], "revenue": ["N/A", "$611.19M", "$660.67M", "$681.06M", "$643.85M"], "net_income": ["N/A", "$291.11M", "$120.51M", "$345.16M", "$221.39M"], "ocf": ["N/A", "$448.06M", "$432.78M", "$488.26M", "$433.64M"], "fcf": ["N/A", "N/A", "N/A", "N/A", "$433.45M"], "dividends": [], "assets_cash": "$95.21M", "assets_st_inv": "N/A", "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 15, "growth": 15, "compounder": 347.0}}, "N2IU.SI": {"ticker": "N2IU.SI", "name": "Mapletree Pan Asia Comm Trust", "sector": "REIT", "is_anchor": false, "price": 1.2799999713897705, "change": 0.0, "p_change": 0.0, "pe_ratio": 25.6, "pb_ratio": 0.74, "div_yield": 6.19, "mkt_cap": "$6.76B", "mkt_cap_raw": 6763993600, "52w_range": "N/A", "ma50": 1.28, "ma200": 1.34, "rsi": 38.7, "vol_surge": false, "intrinsic_val": "$0.78", "moat": "NARROW MOAT", "short_debt": "$507.93M", "long_debt": "$5.05B", "hist_prices": [1.27, 1.29, 1.35, 1.36, 1.37, 1.4, 1.37, 1.36, 1.4, 1.41, 1.4, 1.41, 1.32, 1.28, 1.33, 1.26, 1.22, 1.25, 1.24, 1.29, 1.31, 1.28], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025", "2026"], "revenue": ["N/A", "$776.33M", "$895.51M", "$844.72M", "$807.71M"], "net_income": ["N/A", "$482.60M", "$577.94M", "$584.18M", "$261.27M"], "ocf": ["N/A", "$605.31M", "$725.03M", "$634.03M", "$586.00M"], "fcf": ["N/A", "$604.85M", "$724.71M", "$632.98M", "$584.99M"], "dividends": [], "assets_cash": "$164.22M", "assets_st_inv": "N/A", "assets_ppe": "$9.94M", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 15, "compounder": 329.5}}, "J69U.SI": {"ticker": "J69U.SI", "name": "Frasers Centrepoint Trust", "sector": "REIT", "is_anchor": false, "price": 2.2100000381469727, "change": -0.019999980926513672, "p_change": -0.8968601231606538, "pe_ratio": 20.09, "pb_ratio": 0.98, "div_yield": 5.43, "mkt_cap": "$4.51B", "mkt_cap_raw": 4506864128, "52w_range": "N/A", "ma50": 2.25, "ma200": 2.26, "rsi": 36.8, "vol_surge": false, "intrinsic_val": "$1.71", "moat": "NARROW MOAT", "short_debt": "N/A", "long_debt": "N/A", "hist_prices": [2.17, 2.26, 2.32, 2.27, 2.36, 2.28, 2.21, 2.26, 2.31, 2.28, 2.24, 2.27, 2.21, 2.21, 2.25, 2.36, 2.21, 2.27, 2.24, 2.23, 2.27, 2.21], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["$341.15M", "$356.93M", "$369.72M", "$351.73M", "N/A"], "net_income": ["$168.63M", "$207.28M", "$211.95M", "$197.55M", "N/A"], "ocf": ["$198.44M", "$233.58M", "$243.13M", "$215.67M", "N/A"], "fcf": ["$192.62M", "$227.68M", "$234.80M", "$174.02M", "N/A"], "dividends": [], "assets_cash": "N/A", "assets_st_inv": "N/A", "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 15, "compounder": 276.5}}, "BUOU.SI": {"ticker": "BUOU.SI", "name": "Frasers Logistics & Comm Trust", "sector": "REIT", "is_anchor": false, "price": 0.9700000286102295, "change": 0.0, "p_change": 0.0, "pe_ratio": 16.17, "pb_ratio": 0.86, "div_yield": 6.08, "mkt_cap": "$3.69B", "mkt_cap_raw": 3694350848, "52w_range": "N/A", "ma50": 0.98, "ma200": 0.95, "rsi": 46.2, "vol_surge": false, "intrinsic_val": "$0.93", "moat": "NARROW MOAT", "short_debt": "$474.16M", "long_debt": "$2.03B", "hist_prices": [0.82, 0.85, 0.89, 0.9, 0.91, 0.88, 0.91, 0.95, 0.96, 1.01, 0.98, 0.97, 0.91, 0.88, 0.9, 0.95, 0.94, 0.99, 0.95, 0.97, 0.99, 0.97], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$450.19M", "$420.78M", "$446.67M", "$471.49M"], "net_income": ["$728.64M", "$-103.03M", "$147.53M", "$205.07M"], "ocf": ["N/A", "$306.94M", "$302.25M", "$311.37M", "$302.26M"], "fcf": ["N/A", "$179.33M", "$140.99M", "$223.16M", "$251.69M"], "dividends": [], "assets_cash": "$299.10M", "assets_st_inv": "N/A", "assets_ppe": "$312,000", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 45, "growth": 15, "compounder": 324.0}}, "J36.SI": {"ticker": "J36.SI", "name": "Jardine Matheson", "sector": "Conglomerate", "is_anchor": false, "price": 62.040000915527344, "change": -1.1800003051757812, "p_change": -1.866498390339627, "pe_ratio": 16.37, "pb_ratio": 0.64, "div_yield": 3.8, "mkt_cap": "$18.23B", "mkt_cap_raw": 18227525632, "52w_range": "N/A", "ma50": 63.19, "ma200": 68.29, "rsi": 37.0, "vol_surge": false, "intrinsic_val": "$58.74", "moat": "WIDE MOAT", "short_debt": "$4.92B", "long_debt": "$10.23B", "hist_prices": [53.8, 58.18, 59.64, 62.24, 59.75, 61.02, 60.74, 66.95, 65.14, 71.98, 71.12, 76.44, 71.16, 75.9, 72.11, 69.0, 71.84, 63.12, 62.2, 60.96, 63.62, 62.04], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$37.50B", "$36.05B", "$35.78B", "$34.22B"], "net_income": ["$354.00M", "$686.00M", "$-468.00M", "$1.11B"], "ocf": ["N/A", "$4.83B", "$4.58B", "$5.00B", "$5.31B"], "fcf": ["N/A", "$3.56B", "$2.74B", "$3.62B", "$3.96B"], "dividends": [], "assets_cash": "$8.56B", "assets_st_inv": "N/A", "assets_ppe": "$26.91B", "signal": "NEUTRAL", "scores": {"anchor": 395.0, "momentum": 0, "growth": 15, "compounder": 210.0}}, "C07.SI": {"ticker": "C07.SI", "name": "Jardine Cycle & Carriage", "sector": "Consumer Services", "is_anchor": false, "price": 28.09000015258789, "change": -0.3299999237060547, "p_change": -1.1611538452095462, "pe_ratio": 8.78, "pb_ratio": 1.05, "div_yield": 5.11, "mkt_cap": "$11.10B", "mkt_cap_raw": 11102187520, "52w_range": "N/A", "ma50": 27.64, "ma200": 31.4, "rsi": 50.9, "vol_surge": false, "intrinsic_val": "$49.60", "moat": "WIDE MOAT", "short_debt": "$4.25B", "long_debt": "$2.92B", "hist_prices": [25.08, 27.4, 28.53, 27.89, 27.84, 31.9, 31.74, 33.16, 32.52, 34.39, 30.97, 33.51, 31.91, 34.29, 33.38, 31.84, 32.25, 28.7, 26.88, 27.2, 26.95, 28.09], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$21.57B", "$22.23B", "$22.30B", "$21.36B"], "net_income": ["$739.80M", "$1.22B", "$945.80M", "$997.80M"], "ocf": ["N/A", "$2.85B", "$2.47B", "$3.04B", "$3.17B"], "fcf": ["N/A", "$1.94B", "$906.40M", "$1.92B", "$2.05B"], "dividends": [], "assets_cash": "$3.27B", "assets_st_inv": "N/A", "assets_ppe": "$13.64B", "signal": "NEUTRAL", "scores": {"anchor": 526.0, "momentum": 15, "growth": 15, "compounder": 275.5}}, "U96.SI": {"ticker": "U96.SI", "name": "Sembcorp Industries", "sector": "Utilities", "is_anchor": false, "price": 5.670000076293945, "change": 0.010000228881835938, "p_change": 0.17668249381033926, "pe_ratio": 10.31, "pb_ratio": 1.82, "div_yield": 4.42, "mkt_cap": "$10.09B", "mkt_cap_raw": 10094950400, "52w_range": "N/A", "ma50": 5.87, "ma200": 6.05, "rsi": 66.2, "vol_surge": false, "intrinsic_val": "$8.53", "moat": "WIDE MOAT", "short_debt": "$1.06B", "long_debt": "$7.90B", "hist_prices": [6.11, 5.89, 5.99, 5.91, 6.08, 6.15, 5.93, 5.72, 5.85, 5.87, 5.89, 6.19, 5.56, 6.24, 6.79, 6.48, 6.11, 6.21, 6.36, 5.66, 5.27, 5.67], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$7.83B", "$7.04B", "$6.42B", "$5.80B"], "net_income": ["$848.00M", "$942.00M", "$1.02B", "$984.00M"], "ocf": ["N/A", "$1.65B", "$1.48B", "$1.41B", "$1.17B"], "fcf": ["N/A", "$1.04B", "$645.00M", "$-196.00M", "$208.00M"], "dividends": [], "assets_cash": "$1.11B", "assets_st_inv": "N/A", "assets_ppe": "$12.49B", "signal": "NEUTRAL", "scores": {"anchor": 457.0, "momentum": 0, "growth": 15, "compounder": 241.0}}, "S58.SI": {"ticker": "S58.SI", "name": "SATS Ltd", "sector": "Aviation Services", "is_anchor": false, "price": 4.679999828338623, "change": -0.10000038146972656, "p_change": -2.0920580974789416, "pe_ratio": 24.63, "pb_ratio": 2.51, "div_yield": 1.46, "mkt_cap": "$6.96B", "mkt_cap_raw": 6956692480, "52w_range": "N/A", "ma50": 4.43, "ma200": 3.78, "rsi": 42.6, "vol_surge": false, "intrinsic_val": "$2.94", "moat": "NARROW MOAT", "short_debt": "$246.50M", "long_debt": "$2.13B", "hist_prices": [3.16, 3.27, 3.25, 3.39, 3.31, 3.36, 3.3, 3.39, 3.74, 3.81, 3.75, 3.87, 3.47, 3.59, 3.54, 3.27, 3.18, 3.95, 4.34, 4.49, 4.73, 4.68], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025", "2026"], "revenue": ["N/A", "$1.76B", "$5.15B", "$5.82B", "$6.35B"], "net_income": ["N/A", "$-26.50M", "$56.40M", "$243.80M", "$285.20M"], "ocf": ["N/A", "$79.60M", "$512.10M", "$891.10M", "$1.03B"], "fcf": ["N/A", "$-39.80M", "$326.50M", "$669.40M", "$685.50M"], "dividends": [], "assets_cash": "$752.50M", "assets_st_inv": "N/A", "assets_ppe": "$5.98B", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 45, "growth": 15, "compounder": 93.0}}, "5E2.SI": {"ticker": "5E2.SI", "name": "Seatrium Ltd", "sector": "Offshore & Marine", "is_anchor": false, "price": 2.130000114440918, "change": 0.010000228881835938, "p_change": 0.47170893476164544, "pe_ratio": 13.31, "pb_ratio": 0.98, "div_yield": 1.42, "mkt_cap": "$7.22B", "mkt_cap_raw": 7218015744, "52w_range": "N/A", "ma50": 2.04, "ma200": 2.16, "rsi": 52.7, "vol_surge": false, "intrinsic_val": "$2.48", "moat": "NARROW MOAT", "short_debt": "$900,000", "long_debt": "$2.49B", "hist_prices": [2.31, 2.26, 2.31, 2.39, 2.03, 2.12, 2.05, 2.06, 2.11, 2.25, 2.08, 2.13, 2.25, 2.3, 2.41, 2.36, 2.24, 2.03, 2.02, 1.94, 2.13, 2.13], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$1.95B", "$7.29B", "$9.23B", "$11.47B"], "net_income": ["N/A", "$-261.14M", "$-2.02B", "$156.84M", "$323.62M"], "ocf": ["N/A", "$1.04B", "$600.80M", "$97.35M", "$142.28M"], "fcf": ["N/A", "$1.01B", "$484.45M", "$-4.26M", "$19.72M"], "dividends": [], "assets_cash": "$1.81B", "assets_st_inv": "N/A", "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 15, "growth": 15, "compounder": 91.0}}, "C09.SI": {"ticker": "C09.SI", "name": "City Developments Ltd", "sector": "Real Estate", "is_anchor": false, "price": 7.809999942779541, "change": -0.010000228881835938, "p_change": -0.1278801619058349, "pe_ratio": 11.49, "pb_ratio": 0.75, "div_yield": 3.2, "mkt_cap": "$419.53M", "mkt_cap_raw": 419532640, "52w_range": "N/A", "ma50": 7.95, "ma200": 8.1, "rsi": 52.9, "vol_surge": false, "intrinsic_val": "$10.54", "moat": "MODERATE MOAT", "short_debt": "$3.18B", "long_debt": "$10.22B", "hist_prices": [6.13, 6.55, 6.58, 6.73, 6.76, 6.79, 6.87, 7.02, 7.73, 8.72, 9.01, 9.56, 8.6, 8.2, 8.13, 8.24, 7.84, 8.39, 8.06, 7.85, 7.48, 7.81], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$3.29B", "$4.94B", "$3.27B", "$3.59B"], "net_income": ["N/A", "$1.29B", "$317.31M", "$201.32M", "$629.68M"], "ocf": ["N/A", "$-125.51M", "$950.35M", "$929.67M", "$-1.51B"], "fcf": ["N/A", "$-514.24M", "$438.63M", "$275.44M", "$-2.36B"], "dividends": [], "assets_cash": "$2.01B", "assets_st_inv": "N/A", "assets_ppe": "$7.59B", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 15, "growth": 5, "compounder": 180.0}}, "U14.SI": {"ticker": "U14.SI", "name": "UOL Group", "sector": "Real Estate", "is_anchor": false, "price": 10.119999885559082, "change": 0.18999958038330078, "p_change": 1.9133894715505098, "pe_ratio": 17.75, "pb_ratio": 0.73, "div_yield": 1.81, "mkt_cap": "$8.57B", "mkt_cap_raw": 8567543296, "52w_range": "N/A", "ma50": 9.75, "ma200": 9.6, "rsi": 62.7, "vol_surge": false, "intrinsic_val": "$8.83", "moat": "NARROW MOAT", "short_debt": "$1.01B", "long_debt": "$3.64B", "hist_prices": [6.89, 7.29, 7.57, 7.7, 7.69, 7.78, 8.29, 8.22, 8.51, 9.49, 10.59, 10.93, 10.15, 9.56, 9.77, 10.52, 10.01, 10.03, 9.73, 9.67, 9.4, 10.12], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$3.20B", "$2.68B", "$2.79B", "$3.23B"], "net_income": ["N/A", "$491.87M", "$707.71M", "$358.19M", "$481.73M"], "ocf": ["N/A", "$141.71M", "$808.80M", "$811.26M", "$1.29B"], "fcf": ["N/A", "$-102.90M", "$598.80M", "$663.27M", "$1.18B"], "dividends": [], "assets_cash": "$1.25B", "assets_st_inv": "N/A", "assets_ppe": "$4.20B", "signal": "BULLISH TREND", "scores": {"anchor": 196.0, "momentum": 45, "growth": 15, "compounder": 110.5}}, "H78.SI": {"ticker": "H78.SI", "name": "Hongkong Land", "sector": "Real Estate", "is_anchor": false, "price": 8.270000457763672, "change": -0.049999237060546875, "p_change": -0.6009523904867609, "pe_ratio": 7.8, "pb_ratio": 0.57, "div_yield": 3.25, "mkt_cap": "$17.63B", "mkt_cap_raw": 17626316800, "52w_range": "N/A", "ma50": 7.49, "ma200": 7.51, "rsi": 64.8, "vol_surge": false, "intrinsic_val": "$16.43", "moat": "WIDE MOAT", "short_debt": "$305.60M", "long_debt": "$5.84B", "hist_prices": [5.98, 6.06, 6.46, 6.3, 6.04, 5.97, 6.19, 6.44, 6.87, 8.0, 8.3, 8.36, 7.8, 8.09, 7.91, 7.74, 7.99, 7.35, 7.14, 7.14, 7.77, 8.27], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$2.24B", "$1.84B", "$2.00B", "$1.45B"], "net_income": ["N/A", "$202.70M", "$-582.30M", "$-1.38B", "$1.26B"], "ocf": ["N/A", "$858.30M", "$701.60M", "$670.60M", "$584.40M"], "fcf": ["N/A", "$763.70M", "$616.30M", "$592.10M", "$420.20M"], "dividends": [], "assets_cash": "$2.55B", "assets_st_inv": "N/A", "assets_ppe": "$369.20M", "signal": "NEUTRAL", "scores": {"anchor": 340.0, "momentum": 15, "growth": 15, "compounder": 182.5}}, "D01.SI": {"ticker": "D01.SI", "name": "DFI Retail Group", "sector": "Consumer Staples", "is_anchor": false, "price": 3.8399999141693115, "change": -0.040000200271606445, "p_change": -1.030932966017731, "pe_ratio": 13.24, "pb_ratio": 25.43, "div_yield": 4.3, "mkt_cap": "$5.20B", "mkt_cap_raw": 5199635968, "52w_range": "N/A", "ma50": 3.72, "ma200": 3.91, "rsi": 60.3, "vol_surge": false, "intrinsic_val": "$4.50", "moat": "NARROW MOAT", "short_debt": "$99.20M", "long_debt": "$0", "hist_prices": [2.99, 3.05, 3.23, 3.15, 3.31, 3.33, 3.33, 3.98, 3.87, 3.85, 4.03, 4.12, 4.17, 4.35, 4.27, 4.23, 4.12, 3.89, 3.82, 3.67, 3.43, 3.84], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$9.17B", "$9.17B", "$8.87B", "$8.87B"], "net_income": ["N/A", "$-114.60M", "$32.20M", "$200.60M", "$270.30M"], "ocf": ["N/A", "$939.80M", "$1.04B", "$972.90M", "$1.10B"], "fcf": ["N/A", "$696.10M", "$847.30M", "$799.90M", "$950.40M"], "dividends": [], "assets_cash": "$168.70M", "assets_st_inv": "N/A", "assets_ppe": "$3.99B", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 15, "growth": 25, "compounder": 235.0}}, "EMI.SI": {"ticker": "EMI.SI", "name": "Emperador Inc", "sector": "Consumer Staples", "is_anchor": false, "price": 0.3449999988079071, "change": 0.0, "p_change": 0.0, "pe_ratio": 34.5, "pb_ratio": 2.4, "div_yield": 0.84, "mkt_cap": "$5.43B", "mkt_cap_raw": 5433912832, "52w_range": "N/A", "ma50": 0.34, "ma200": 0.31, "rsi": 100.0, "vol_surge": false, "intrinsic_val": "$0.15", "moat": "NARROW MOAT", "short_debt": "$984.77M", "long_debt": "$40.99B", "hist_prices": [0.22, 0.23, 0.22, 0.22, 0.22, 0.22, 0.21, 0.21, 0.21, 0.21, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$60.67B", "$64.50B", "$60.74B", "$56.21B"], "net_income": ["N/A", "$10.06B", "$8.71B", "$6.32B", "$3.86B"], "ocf": ["N/A", "$8.14B", "$7.15B", "$5.30B", "$6.94B"], "fcf": ["N/A", "$4.14B", "$2.37B", "$-2.21B", "$268.43M"], "dividends": [], "assets_cash": "$10.07B", "assets_st_inv": "N/A", "assets_ppe": "$73.40B", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 30, "growth": 25, "compounder": 62.0}}, "OV8.SI": {"ticker": "OV8.SI", "name": "Sheng Siong Group", "sector": "Consumer Staples", "is_anchor": false, "price": 3.259999990463257, "change": 0.019999980926513672, "p_change": 0.6172833599219787, "pe_ratio": 32.6, "pb_ratio": 8.01, "div_yield": 2.33, "mkt_cap": "$0", "mkt_cap_raw": 0, "52w_range": "N/A", "ma50": 3.24, "ma200": 2.88, "rsi": 45.9, "vol_surge": false, "intrinsic_val": "$1.55", "moat": "MODERATE MOAT", "short_debt": "N/A", "long_debt": "N/A", "hist_prices": [2.07, 2.02, 2.11, 2.09, 2.14, 2.52, 2.67, 2.6, 2.61, 2.74, 2.72, 2.68, 2.53, 2.7, 3.11, 2.99, 3.04, 3.04, 3.21, 3.26, 3.26, 3.26], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$1.34B", "$1.37B", "$1.43B", "$1.57B"], "net_income": ["N/A", "$133.30M", "$133.65M", "$137.52M", "$149.46M"], "ocf": ["N/A", "$166.81M", "$177.07M", "$218.99M", "$236.62M"], "fcf": ["N/A", "$158.01M", "$166.91M", "$200.80M", "$215.76M"], "dividends": [], "assets_cash": "$435.50M", "assets_st_inv": "N/A", "assets_ppe": "$688.54M", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 45, "growth": 15, "compounder": 121.5}}, "AIY.SI": {"ticker": "AIY.SI", "name": "iFAST Corporation", "sector": "Fintech / Wealth", "is_anchor": false, "price": 9.050000190734863, "change": 0.039999961853027344, "p_change": 0.4439507306599917, "pe_ratio": 23.82, "pb_ratio": 6.21, "div_yield": 1.14, "mkt_cap": "$2.76B", "mkt_cap_raw": 2758150656, "52w_range": "N/A", "ma50": 9.02, "ma200": 9.18, "rsi": 40.3, "vol_surge": false, "intrinsic_val": "$5.89", "moat": "NARROW MOAT", "short_debt": "$13.81M", "long_debt": "$99.26M", "hist_prices": [9.36, 8.29, 8.75, 8.78, 8.72, 9.37, 8.84, 9.22, 9.39, 9.63, 10.45, 9.36, 8.59, 8.93, 9.4, 8.77, 8.56, 8.88, 9.12, 8.92, 9.25, 9.05], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$205.31M", "$242.51M", "$339.48M", "$445.32M"], "net_income": ["$6.42M", "$28.27M", "$66.63M", "$100.01M"], "ocf": ["N/A", "$47.40M", "$273.45M", "$671.28M", "$551.73M"], "fcf": ["N/A", "$32.39M", "$251.59M", "$645.65M", "$520.58M"], "dividends": [], "assets_cash": "$460.61M", "assets_st_inv": "N/A", "assets_ppe": "$130.46M", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 15, "growth": 25, "compounder": 77.0}}, "MZH.SI": {"ticker": "MZH.SI", "name": "Nanofilm Technologies", "sector": "Technology", "is_anchor": false, "price": 1.1799999475479126, "change": 0.019999980926513672, "p_change": 1.7241363348935255, "pe_ratio": 59.0, "pb_ratio": 1.76, "div_yield": 1.03, "mkt_cap": "$769.80M", "mkt_cap_raw": 769804352, "52w_range": "N/A", "ma50": 1.18, "ma200": 0.88, "rsi": 59.0, "vol_surge": false, "intrinsic_val": "$0.31", "moat": "MODERATE MOAT", "short_debt": "$10.65M", "long_debt": "$81.78M", "hist_prices": [0.75, 0.73, 0.81, 0.75, 0.65, 0.68, 0.65, 0.6, 0.59, 0.58, 0.57, 0.64, 0.63, 0.58, 0.76, 1.44, 1.37, 1.23, 1.33, 1.16, 1.1, 1.18], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2021", "2022", "2023", "2024", "2025"], "revenue": ["N/A", "$237.41M", "$177.02M", "$204.27M", "$244.57M"], "net_income": ["N/A", "$43.81M", "$3.13M", "$7.74M", "$11.80M"], "ocf": ["N/A", "$72.42M", "$39.05M", "$21.22M", "$48.64M"], "fcf": ["N/A", "$10.29M", "$-24.29M", "$-28.88M", "$-14.48M"], "dividends": [], "assets_cash": "$84.55M", "assets_st_inv": "N/A", "assets_ppe": "$483.82M", "signal": "BULLISH TREND", "scores": {"anchor": 0, "momentum": 45, "growth": 15, "compounder": 71.5}}, "BSL.SI": {"ticker": "BSL.SI", "name": "Raffles Medical Group", "sector": "Healthcare", "is_anchor": false, "price": 0.875, "change": 0.0, "p_change": 0.0, "pe_ratio": 21.88, "pb_ratio": 1.54, "div_yield": 3.43, "mkt_cap": "$1.61B", "mkt_cap_raw": 1610167040, "52w_range": "N/A", "ma50": 0.92, "ma200": 0.96, "rsi": 15.0, "vol_surge": false, "intrinsic_val": "$0.62", "moat": "MODERATE MOAT", "short_debt": "$49.70M", "long_debt": "$0", "hist_prices": [1.01, 0.98, 0.99, 0.96, 0.97, 0.96, 0.95, 0.95, 0.99, 0.98, 0.96, 1.0, 0.97, 0.96, 0.98, 0.97, 0.95, 0.94, 0.92, 0.92, 0.95, 0.88], "hist_labels": ["Aug 25", "Aug 25", "Sep 25", "Oct 25", "Oct 25", "Nov 25", "Nov 25", "Dec 25", "Dec 25", "Jan 26", "Jan 26", "Feb 26", "Mar 26", "Mar 26", "Apr 26", "Apr 26", "May 26", "Jun 26", "Jun 26", "Jul 26", "Jul 26", "Aug 26"], "years": ["2022", "2023", "2024", "2025"], "revenue": ["$822.92M", "$706.92M", "$751.56M", "$765.30M"], "net_income": ["$143.21M", "$90.15M", "$62.24M", "$70.57M"], "ocf": ["N/A", "$196.22M", "$189.31M", "$86.25M", "$101.33M"], "fcf": ["N/A", "$170.93M", "$167.37M", "$65.34M", "$91.31M"], "dividends": [], "assets_cash": "$310.79M", "assets_st_inv": "N/A", "assets_ppe": "$886.34M", "signal": "OVERSOLD", "scores": {"anchor": 0, "momentum": 0, "growth": 5, "compounder": 191.5}}};
+        const recData = ["C38U.SI", "C6L.SI", "U11.SI", "BN4.SI", "D01.SI", "EMI.SI", "ME8U.SI", "N2IU.SI"];
+
+        window.onload = function() {
+            recData.forEach(ticker => {
+                const item = stockData[ticker];
+                if (item && item.hist_prices && item.hist_prices.length > 0) {
+                    const canvasId = 'chart-' + ticker.replace('.', '_');
+                    const ctx = document.getElementById(canvasId);
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: item.hist_labels,
+                                datasets: [{
+                                    data: item.hist_prices,
+                                    borderColor: '#38bdf8',
+                                    borderWidth: 2,
+                                    fill: false,
+                                    pointRadius: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: { x: { display: false }, y: { display: false } }
+                            }
+                        });
+                    }
+                }
+            });
+        };
+
+        function openModal(ticker) {
+            const item = stockData[ticker];
+            if (!item) return;
+
+            document.getElementById('m-title').innerText = item.ticker + ' - ' + item.name;
+            document.getElementById('m-subtitle').innerText = item.sector + ' | ' + item.mkt_cap + ' Market Cap';
+            document.getElementById('m-st-debt').innerText = item.short_debt;
+            document.getElementById('m-lt-debt').innerText = item.long_debt;
+            document.getElementById('m-cash').innerText = item.assets_cash;
+            document.getElementById('m-ppe').innerText = item.assets_ppe;
+            document.getElementById('m-intrinsic').innerText = item.intrinsic_val;
+            document.getElementById('m-moat').innerText = item.moat;
+
+            const yearsHeader = '<th>Metric</th>' + (item.years && item.years.length > 0 ? item.years.map(y => `<th>${y}</th>`).join('') : '<th>N/A</th>');
+            document.getElementById('m-hist-years').innerHTML = yearsHeader;
+            
+            document.getElementById('m-hist-rev').innerHTML = '<td>Revenue</td>' + (item.revenue && item.revenue.length > 0 ? item.revenue.map(v => `<td>${v}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${v}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${v}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${v}</td>`).join('') : '<td>N/A</td>');
+
+            document.getElementById('deepDiveModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('deepDiveModal').style.display = 'none';
+        }
+    </script>
 </body>
 </html>
