@@ -1,9 +1,17 @@
 import os
+import time
 import datetime
 import json
 import pandas as pd
 import numpy as np
+import requests
 import yfinance as yf
+
+# Configure custom browser session to prevent Yahoo bot detection
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, Gecko) Chrome/122.0.0.0 Safari/537.36"
+})
 
 # Stock Universe: STI 30 + Mid-Cap Growth Stocks
 STOCK_UNIVERSE = [
@@ -74,7 +82,7 @@ def format_compact(val):
     except: return "N/A"
 
 def get_statement_row(df, possible_names):
-    if df is None or df.empty: return None
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty: return None
     for name in possible_names:
         for idx in df.index:
             if str(idx).strip().lower() == name.strip().lower():
@@ -83,13 +91,12 @@ def get_statement_row(df, possible_names):
 
 def analyze_universe_batch(stock_universe):
     tickers = [item["ticker"] for item in stock_universe]
-    print(f"⚡ Downloading 1-year historical data for {len(tickers)} tickers in 1 batch request...")
+    print(f"⚡ Downloading 1-year price history for {len(tickers)} tickers in 1 batch request...")
 
-    # SOLUTION 1: Single bulk download to prevent HTTP 429/IP blocking
     try:
-        batch_df = yf.download(tickers, period="1y", group_by="ticker", threads=True, progress=False)
+        batch_df = yf.download(tickers, period="1y", group_by="ticker", threads=True, progress=False, session=session)
     except Exception as e:
-        print(f"❌ Error fetching batch data: {e}")
+        print(f"⚠️ Warning during batch download: {e}")
         batch_df = pd.DataFrame()
 
     analyzed_stocks = []
@@ -111,11 +118,14 @@ def analyze_universe_batch(stock_universe):
             "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
         }
 
+        # 1. Price Data Parsing
         try:
-            # 1. Safely extract history from the bulk DataFrame
             hist = None
-            if not batch_df.empty and symbol in batch_df.columns.levels[0]:
-                hist = batch_df[symbol].dropna(how="all")
+            if not batch_df.empty:
+                if len(tickers) == 1:
+                    hist = batch_df.dropna(how="all")
+                elif symbol in batch_df.columns.levels[0]:
+                    hist = batch_df[symbol].dropna(how="all")
 
             if hist is not None and not hist.empty and len(hist) >= 5:
                 last_close = float(hist["Close"].iloc[-1])
@@ -124,13 +134,11 @@ def analyze_universe_batch(stock_universe):
                 data["change"] = last_close - prev_close
                 data["p_change"] = (data["change"] / (prev_close + 1e-9)) * 100
 
-                # Sampling points for interactive trendlines
                 sample_step = max(1, len(hist) // 20)
                 sampled_df = hist.iloc[::sample_step]
                 data["hist_prices"] = [round(float(p), 2) for p in sampled_df["Close"].tolist()]
                 data["hist_labels"] = [d.strftime("%b %y") if hasattr(d, 'strftime') else str(d) for d in sampled_df.index]
 
-                # Technical Indicators
                 if len(hist) >= 50:
                     ma50_s = hist["Close"].rolling(50).mean()
                     c_ma50 = ma50_s.iloc[-1]
@@ -149,7 +157,6 @@ def analyze_universe_batch(stock_universe):
                 avg_vol_20 = float(hist["Volume"].tail(20).mean()) if "Volume" in hist.columns and len(hist) >= 20 else 1
                 data["vol_surge"] = bool(c_vol > 1.5 * avg_vol_20)
 
-                # Signals
                 if data["ma50"] != "N/A" and data["ma200"] != "N/A":
                     if data["ma50"] > data["ma200"]:
                         data["signal"] = "BULLISH TREND"
@@ -159,8 +166,15 @@ def analyze_universe_batch(stock_universe):
                 if data["vol_surge"]:
                     data["signal"] += " + VOL SURGE"
 
-            # 2. Metadata & Fundamental details
-            ticker_obj = yf.Ticker(symbol)
+        except Exception as e:
+            print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
+
+        # 2. Metadata & Financial Statement Parsing (Guarded)
+        try:
+            time.sleep(0.3)  # Polite pause between requests
+            ticker_obj = yf.Ticker(symbol, session=session)
+            
+            # Fetch Info Safely
             info = {}
             try:
                 info = ticker_obj.info or {}
@@ -184,12 +198,9 @@ def analyze_universe_batch(stock_universe):
             else:
                 data["moat"] = "MODERATE MOAT"
 
-            # 3. Financial Statements
+            # Fetch Financial Statements Safely
             try:
-                fin = getattr(ticker_obj, 'financials', None)
-                cf = getattr(ticker_obj, 'cashflow', None)
-                bs = getattr(ticker_obj, 'balance_sheet', None)
-
+                fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
                     cols = list(fin.columns[:5])
                     data["years"] = [d.strftime("%Y") if hasattr(d, 'strftime') else str(d) for d in cols][::-1]
@@ -197,7 +208,11 @@ def analyze_universe_batch(stock_universe):
                     net_row = get_statement_row(fin, ["Net Income", "Net Income Common Stockholders"])
                     data["revenue"] = [format_compact(rev_row[c]) if rev_row is not None and c in rev_row else "N/A" for c in cols][::-1]
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
+            except Exception:
+                pass
 
+            try:
+                cf = ticker_obj.cashflow
                 if cf is not None and not cf.empty:
                     cols = list(cf.columns[:5])
                     ocf_row = get_statement_row(cf, ["Operating Cash Flow", "Total Cash From Operating Activities"])
@@ -207,7 +222,11 @@ def analyze_universe_batch(stock_universe):
                     fcf_vals = [o - ca for o, ca in zip(ocf_vals, capex_vals)]
                     data["ocf"] = [format_compact(v) for v in ocf_vals][::-1]
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
+            except Exception:
+                pass
 
+            try:
+                bs = ticker_obj.balance_sheet
                 if bs is not None and not bs.empty:
                     c0 = bs.columns[0]
                     st_debt = get_statement_row(bs, ["Current Debt", "Current Debt And Capital Lease Obligation", "Short Term Debt"])
@@ -221,21 +240,21 @@ def analyze_universe_batch(stock_universe):
             except Exception:
                 pass
 
-            # 4. Scoring Logic
-            if is_anchor or data["mkt_cap_raw"] > 8e9:
-                data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
-
-            mom_score = 0
-            if "BULLISH TREND" in data["signal"]: mom_score += 30
-            if data["vol_surge"]: mom_score += 20
-            if isinstance(data["rsi"], (int, float)) and 40 <= data["rsi"] <= 65: mom_score += 15
-            data["scores"]["momentum"] = mom_score
-
-            data["scores"]["growth"] = (15 if data["sector"] in ["Technology", "Consumer Staples", "Fintech / Wealth"] else 5) + (10 if data["moat"] != "MODERATE MOAT" else 0)
-            data["scores"]["compounder"] = (data["div_yield"] * 50) + (20 if data["short_debt"] != "N/A" else 5)
-
         except Exception as e:
-            print(f"⚠️ Notice: Minor parsing issue for {symbol}: {e}")
+            print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
+
+        # 3. Scoring Logic
+        if is_anchor or data["mkt_cap_raw"] > 8e9:
+            data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
+
+        mom_score = 0
+        if "BULLISH TREND" in data["signal"]: mom_score += 30
+        if data["vol_surge"]: mom_score += 20
+        if isinstance(data["rsi"], (int, float)) and 40 <= data["rsi"] <= 65: mom_score += 15
+        data["scores"]["momentum"] = mom_score
+
+        data["scores"]["growth"] = (15 if data["sector"] in ["Technology", "Consumer Staples", "Fintech / Wealth"] else 5) + (10 if data["moat"] != "MODERATE MOAT" else 0)
+        data["scores"]["compounder"] = (data["div_yield"] * 50) + (20 if data["short_debt"] != "N/A" else 5)
 
         analyzed_stocks.append(data)
 
@@ -373,4 +392,153 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .modal-content {{ background: #1e293b; max-width: 850px; width: 100%; max-height: 90vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
         .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
         .modal-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; background: #0f172a; padding: 16px; border-radius: 8px; }}
-        .data-table {{ width: 100%; margin-top
+        .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
+        .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>SGX Stock Scanner Dashboard</h1>
+                <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
+            </div>
+            <div class="text-muted">Updated: {timestamp}</div>
+        </div>
+
+        <div class="section-title">⭐ Top 8 Recommended Opportunities</div>
+        <div class="rec-grid">
+            {rec_cards_html}
+        </div>
+
+        <div class="section-title">📊 Full SGX Stock Universe Scan</div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company & Sector</th>
+                        <th>Price (SGD)</th>
+                        <th>Day Change</th>
+                        <th>Signal</th>
+                        <th>Div Yield</th>
+                        <th>P/B Ratio</th>
+                        <th>Market Cap</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows_html}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="deepDiveModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
+            <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
+            
+            <div class="modal-grid">
+                <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
+                <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
+                <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
+                <div>PPE / Buildings: <strong id="m-ppe">N/A</strong></div>
+                <div>Intrinsic Value: <strong id="m-intrinsic">N/A</strong></div>
+                <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
+            </div>
+
+            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financial & Cash Flow Statement</h3>
+            <table class="data-table">
+                <thead>
+                    <tr id="m-hist-years"><th>Metric</th></tr>
+                </thead>
+                <tbody>
+                    <tr id="m-hist-rev"><td>Revenue</td></tr>
+                    <tr id="m-hist-net"><td>Net Income</td></tr>
+                    <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
+                    <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const stockData = {json.dumps(json_data)};
+        const recData = {json.dumps([r['data']['ticker'] for r in top_8_recs])};
+
+        window.onload = function() {{
+            recData.forEach(ticker => {{
+                const item = stockData[ticker];
+                if (item && item.hist_prices && item.hist_prices.length > 0) {{
+                    const canvasId = 'chart-' + ticker.replace('.', '_');
+                    const ctx = document.getElementById(canvasId);
+                    if (ctx) {{
+                        new Chart(ctx, {{
+                            type: 'line',
+                            data: {{
+                                labels: item.hist_labels,
+                                datasets: [{{
+                                    data: item.hist_prices,
+                                    borderColor: '#38bdf8',
+                                    borderWidth: 2,
+                                    fill: false,
+                                    pointRadius: 0
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {{ legend: {{ display: false }} }},
+                                scales: {{ x: {{ display: false }}, y: {{ display: false }} }}
+                            }}
+                        }});
+                    }}
+                }}
+            }});
+        }};
+
+        function openModal(ticker) {{
+            const item = stockData[ticker];
+            if (!item) return;
+
+            document.getElementById('m-title').innerText = item.ticker + ' - ' + item.name;
+            document.getElementById('m-subtitle').innerText = item.sector + ' | ' + item.mkt_cap + ' Market Cap';
+            document.getElementById('m-st-debt').innerText = item.short_debt;
+            document.getElementById('m-lt-debt').innerText = item.long_debt;
+            document.getElementById('m-cash').innerText = item.assets_cash;
+            document.getElementById('m-ppe').innerText = item.assets_ppe;
+            document.getElementById('m-intrinsic').innerText = item.intrinsic_val;
+            document.getElementById('m-moat').innerText = item.moat;
+
+            const yearsHeader = '<th>Metric</th>' + (item.years && item.years.length > 0 ? item.years.map(y => `<th>${{y}}</th>`).join('') : '<th>N/A</th>');
+            document.getElementById('m-hist-years').innerHTML = yearsHeader;
+            
+            document.getElementById('m-hist-rev').innerHTML = '<td>Revenue</td>' + (item.revenue && item.revenue.length > 0 ? item.revenue.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+
+            document.getElementById('deepDiveModal').style.display = 'flex';
+        }}
+
+        function closeModal() {{
+            document.getElementById('deepDiveModal').style.display = 'none';
+        }}
+    </script>
+</body>
+</html>"""
+
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_doc)
+    print("✅ Dashboard generated successfully: index.html")
+
+def main():
+    print(f"Starting SGX scanner...")
+    analyzed = analyze_universe_batch(STOCK_UNIVERSE)
+    top_8 = allocate_top_8_buckets(analyzed)
+    render_html_dashboard(analyzed, top_8)
+
+if __name__ == "__main__":
+    main()
