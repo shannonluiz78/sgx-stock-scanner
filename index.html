@@ -6,79 +6,143 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>SGX Core 8 Dashboard</title>
+    <title>SGX Core 8 Financial Dashboard</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 30px; background: #f8f9fa; color: #212529; }
-        h1 { color: #0d6efd; border-bottom: 2px solid #0d6efd; padding-bottom: 8px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        th { background: #0d6efd; color: #fff; }
-        tr:hover { background: #f1f3f5; }
-        .timestamp { font-size: 0.85em; color: #6c757d; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; background: #0f172a; color: #f8fafc; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 24px; }
+        h1 { font-size: 1.75rem; font-weight: 700; margin: 0; color: #38bdf8; }
+        .timestamp { font-size: 0.85rem; color: #94a3b8; }
+        .table-card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow-x: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
+        th { background: #0f172a; padding: 14px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        td { padding: 14px 16px; border-bottom: 1px solid #334155; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #26354a; }
+        .text-muted { color: #94a3b8; font-size: 0.8rem; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; }
+        .pos { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .neg { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .neu { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
     </style>
 </head>
 <body>
-    <h1>SGX Core 8 Dashboard</h1>
-    <p class="timestamp">Last Updated: 2026-08-12 00:10:54 UTC</p>
-    <table border="1" class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th>Ticker</th>
-      <th>Company</th>
-      <th>Price (SGD)</th>
-      <th>Status</th>
-    </tr>
-  </thead>
-  <tbody>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>SGX Core 8 Dashboard</h1>
+                <div class="text-muted">Real-time tracking of Singapore's core market pillars</div>
+            </div>
+            <div class="timestamp">Last updated: 2026-08-12 00:14:10 UTC</div>
+        </div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company</th>
+                        <th>Price (SGD)</th>
+                        <th>Day Change</th>
+                        <th>Div Yield</th>
+                        <th>P/E Ratio</th>
+                        <th>Market Cap</th>
+                        <th>52-Wk Range</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
     <tr>
-      <td>D05.SI</td>
-      <td>DBS Group Holdings</td>
-      <td>$76.99</td>
-      <td>Active</td>
+        <td><strong>D05.SI</strong></td>
+        <td>DBS Group Holdings<br><small class="text-muted">Banking</small></td>
+        <td><strong>$76.99</strong></td>
+        <td><span class="badge pos">+$0.79 (+1.04%)</span></td>
+        <td>4.13%</td>
+        <td>19.69</td>
+        <td>$218.96B</td>
+        <td><small>$49.37 - $77.97</small></td>
     </tr>
+    
     <tr>
-      <td>O39.SI</td>
-      <td>OCBC Bank</td>
-      <td>$31.36</td>
-      <td>Active</td>
+        <td><strong>O39.SI</strong></td>
+        <td>OCBC Bank<br><small class="text-muted">Banking</small></td>
+        <td><strong>$31.36</strong></td>
+        <td><span class="badge pos">+$1.09 (+3.60%)</span></td>
+        <td>3.00%</td>
+        <td>18.02</td>
+        <td>$140.81B</td>
+        <td><small>$16.19 - $31.56</small></td>
     </tr>
+    
     <tr>
-      <td>U11.SI</td>
-      <td>UOB</td>
-      <td>$42.16</td>
-      <td>Active</td>
+        <td><strong>U11.SI</strong></td>
+        <td>UOB<br><small class="text-muted">Banking</small></td>
+        <td><strong>$42.16</strong></td>
+        <td><span class="badge neg">-$1.07 (-2.48%)</span></td>
+        <td>4.17%</td>
+        <td>14.64</td>
+        <td>$69.60B</td>
+        <td><small>$33.25 - $45.15</small></td>
     </tr>
+    
     <tr>
-      <td>Z74.SI</td>
-      <td>Singtel</td>
-      <td>$4.31</td>
-      <td>Active</td>
+        <td><strong>Z74.SI</strong></td>
+        <td>Singtel<br><small class="text-muted">Telecommunications</small></td>
+        <td><strong>$4.31</strong></td>
+        <td><span class="badge pos">+$0.02 (+0.47%)</span></td>
+        <td>3.11%</td>
+        <td>12.68</td>
+        <td>$70.55B</td>
+        <td><small>$3.92 - $5.27</small></td>
     </tr>
+    
     <tr>
-      <td>S68.SI</td>
-      <td>Singapore Exchange (SGX)</td>
-      <td>$25.20</td>
-      <td>Active</td>
+        <td><strong>S68.SI</strong></td>
+        <td>Singapore Exchange<br><small class="text-muted">Financial Services</small></td>
+        <td><strong>$25.20</strong></td>
+        <td><span class="badge pos">+$0.58 (+2.36%)</span></td>
+        <td>1.77%</td>
+        <td>38.77</td>
+        <td>$26.93B</td>
+        <td><small>$15.62 - $25.39</small></td>
     </tr>
+    
     <tr>
-      <td>C38U.SI</td>
-      <td>CapitaLand Integrated Commercial Trust</td>
-      <td>$2.51</td>
-      <td>Active</td>
+        <td><strong>C38U.SI</strong></td>
+        <td>CapitaLand Integrated Comm Trust<br><small class="text-muted">REIT</small></td>
+        <td><strong>$2.51</strong></td>
+        <td><span class="badge pos">+$0.05 (+2.03%)</span></td>
+        <td>6.20%</td>
+        <td>19.31</td>
+        <td>$19.78B</td>
+        <td><small>$2.17 - $2.57</small></td>
     </tr>
+    
     <tr>
-      <td>A17U.SI</td>
-      <td>CapitaLand Ascendas REIT</td>
-      <td>$2.51</td>
-      <td>Active</td>
+        <td><strong>A17U.SI</strong></td>
+        <td>CapitaLand Ascendas REIT<br><small class="text-muted">REIT</small></td>
+        <td><strong>$2.51</strong></td>
+        <td><span class="badge pos">+$0.02 (+0.80%)</span></td>
+        <td>2.98%</td>
+        <td>15.69</td>
+        <td>$12.54B</td>
+        <td><small>$2.42 - $2.92</small></td>
     </tr>
+    
     <tr>
-      <td>C6L.SI</td>
-      <td>Singapore Airlines</td>
-      <td>$7.15</td>
-      <td>Active</td>
+        <td><strong>C6L.SI</strong></td>
+        <td>Singapore Airlines<br><small class="text-muted">Aviation</small></td>
+        <td><strong>$7.15</strong></td>
+        <td><span class="badge neg">-$0.45 (-5.92%)</span></td>
+        <td>6.15%</td>
+        <td>23.83</td>
+        <td>$22.55B</td>
+        <td><small>$6.21 - $7.92</small></td>
     </tr>
-  </tbody>
-</table>
+    
+                </tbody>
+            </table>
+        </div>
+    </div>
 </body>
 </html>
