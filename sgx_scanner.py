@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import yfinance as yf
 
-# Fixed list of the Core 8 SGX Stocks
+# Complete list of Core 8 SGX Stocks
 CORE_8_STOCKS = [
     {"ticker": "D05.SI", "name": "DBS Group Holdings"},
     {"ticker": "O39.SI", "name": "OCBC Bank"},
@@ -18,7 +18,6 @@ CORE_8_STOCKS = [
 def fetch_stock_data(item):
     ticker_symbol = item["ticker"]
     company_name = item["name"]
-    
     price_display = "Data Pending"
     status = "Active"
 
@@ -26,11 +25,9 @@ def fetch_stock_data(item):
         stock = yf.Ticker(ticker_symbol)
         price = None
         
-        # Method 1: Fast info (best for cloud runners)
         if hasattr(stock, 'fast_info'):
             price = stock.fast_info.get('lastPrice') or stock.fast_info.get('previousClose')
         
-        # Method 2: Standard info dictionary fallback
         if price is None and hasattr(stock, 'info') and isinstance(stock.info, dict):
             price = stock.info.get('regularMarketPrice') or stock.info.get('currentPrice')
 
@@ -42,7 +39,6 @@ def fetch_stock_data(item):
         print(f"Warning fetching {ticker_symbol}: {e}")
         status = "Fetch Error"
 
-    # Always return a row entry so all 8 stocks appear in the table
     return {
         "Ticker": ticker_symbol,
         "Company": company_name,
@@ -52,8 +48,6 @@ def fetch_stock_data(item):
 
 def generate_dashboard():
     print("Fetching data for all 8 SGX Core stocks...")
-    
-    # Process every item in the Core 8 array
     results = [fetch_stock_data(item) for item in CORE_8_STOCKS]
     
     df = pd.DataFrame(results)
@@ -64,6 +58,9 @@ def generate_dashboard():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>SGX Core 8 Dashboard</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 30px; background: #f8f9fa; color: #212529; }}
