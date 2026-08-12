@@ -13,7 +13,6 @@ session.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, Gecko) Chrome/122.0.0.0 Safari/537.36"
 })
 
-# Stock Universe: STI 30 + Mid-Cap Growth Stocks
 STOCK_UNIVERSE = [
     # STI 30 Components
     {"ticker": "D05.SI", "name": "DBS Group Holdings", "sector": "Banking", "is_anchor": True},
@@ -113,7 +112,9 @@ def analyze_universe_batch(stock_universe):
             "div_yield": 0.0, "mkt_cap": "N/A", "mkt_cap_raw": 0, "52w_range": "N/A",
             "ma50": "N/A", "ma200": "N/A", "rsi": "N/A", "vol_surge": False,
             "intrinsic_val": "N/A", "moat": "Medium", "short_debt": "N/A", "long_debt": "N/A",
-            "hist_prices": [], "hist_labels": [], "years": [], "revenue": [], "net_income": [],
+            "hist_prices": [], "hist_labels": [],
+            "daily_prices": [], "daily_dates": [],
+            "years": [], "revenue": [], "net_income": [],
             "ocf": [], "fcf": [], "dividends": [], "assets_cash": "N/A", "assets_st_inv": "N/A",
             "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
         }
@@ -134,6 +135,11 @@ def analyze_universe_batch(stock_universe):
                 data["change"] = last_close - prev_close
                 data["p_change"] = (data["change"] / (prev_close + 1e-9)) * 100
 
+                # Full Daily Data for Interactive Modal Charting
+                data["daily_prices"] = [round(float(p), 2) for p in hist["Close"].tolist()]
+                data["daily_dates"] = [d.strftime("%Y-%m-%d") if hasattr(d, 'strftime') else str(d) for d in hist.index]
+
+                # Sampled Data for Mini Sparklines
                 sample_step = max(1, len(hist) // 20)
                 sampled_df = hist.iloc[::sample_step]
                 data["hist_prices"] = [round(float(p), 2) for p in sampled_df["Close"].tolist()]
@@ -169,12 +175,11 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
 
-        # 2. Metadata & Financial Statement Parsing (Guarded)
+        # 2. Metadata & Financial Statements Parsing
         try:
-            time.sleep(0.3)  # Polite pause between requests
+            time.sleep(0.3)
             ticker_obj = yf.Ticker(symbol, session=session)
             
-            # Fetch Info Safely
             info = {}
             try:
                 info = ticker_obj.info or {}
@@ -198,7 +203,7 @@ def analyze_universe_batch(stock_universe):
             else:
                 data["moat"] = "MODERATE MOAT"
 
-            # Fetch Financial Statements Safely
+            # Financials
             try:
                 fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
@@ -243,7 +248,7 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
 
-        # 3. Scoring Logic
+        # 3. Scoring
         if is_anchor or data["mkt_cap_raw"] > 8e9:
             data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
 
@@ -342,7 +347,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
             <td>{div_str}</td>
             <td>{stk['pb_ratio']}</td>
             <td>{stk['mkt_cap']}</td>
-            <td><button class="btn-detail">5-Yr Deep Dive</button></td>
+            <td><button class="btn-detail">Deep Dive & Chart</button></td>
         </tr>
         """
 
@@ -388,12 +393,21 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .neu {{ background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }}
         .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
         .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
-        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
-        .modal-content {{ background: #1e293b; max-width: 850px; width: 100%; max-height: 90vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
+        
+        /* Modal Styling */
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
+        .modal-content {{ background: #1e293b; max-width: 900px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
         .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
         .modal-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; background: #0f172a; padding: 16px; border-radius: 8px; }}
         .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
         .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
+        
+        /* Interactive Chart Controls */
+        .modal-chart-box {{ background: #0f172a; padding: 16px; border-radius: 8px; margin: 16px 0; }}
+        .tf-btn-group {{ display: flex; gap: 8px; margin-bottom: 12px; justify-content: flex-end; }}
+        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }}
+        .tf-btn.active, .tf-btn:hover {{ background: #0284c7; color: white; }}
+        .big-chart-container {{ height: 260px; width: 100%; position: relative; }}
     </style>
 </head>
 <body>
@@ -440,6 +454,18 @@ def render_html_dashboard(all_stocks, top_8_recs):
             <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
             <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
             
+            <div class="modal-chart-box">
+                <div class="tf-btn-group">
+                    <button class="tf-btn" onclick="updateModalChart('1M')">1M</button>
+                    <button class="tf-btn" onclick="updateModalChart('3M')">3M</button>
+                    <button class="tf-btn" onclick="updateModalChart('6M')">6M</button>
+                    <button class="tf-btn active" onclick="updateModalChart('1Y')">1Y</button>
+                </div>
+                <div class="big-chart-container">
+                    <canvas id="modalChartCanvas"></canvas>
+                </div>
+            </div>
+
             <div class="modal-grid">
                 <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
                 <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
@@ -467,6 +493,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
     <script>
         const stockData = {json.dumps(json_data)};
         const recData = {json.dumps([r['data']['ticker'] for r in top_8_recs])};
+        let modalChartInstance = null;
+        let activeModalTicker = null;
 
         window.onload = function() {{
             recData.forEach(ticker => {{
@@ -503,6 +531,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
             const item = stockData[ticker];
             if (!item) return;
 
+            activeModalTicker = ticker;
+
             document.getElementById('m-title').innerText = item.ticker + ' - ' + item.name;
             document.getElementById('m-subtitle').innerText = item.sector + ' | ' + item.mkt_cap + ' Market Cap';
             document.getElementById('m-st-debt').innerText = item.short_debt;
@@ -521,6 +551,76 @@ def render_html_dashboard(all_stocks, top_8_recs):
             document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
 
             document.getElementById('deepDiveModal').style.display = 'flex';
+            
+            // Render 1Y chart by default
+            updateModalChart('1Y');
+        }}
+
+        function updateModalChart(timeframe) {{
+            if (!activeModalTicker || !stockData[activeModalTicker]) return;
+
+            const item = stockData[activeModalTicker];
+            const dates = item.daily_dates || [];
+            const prices = item.daily_prices || [];
+
+            if (dates.length === 0 || prices.length === 0) return;
+
+            // Highlight active button
+            const buttons = document.querySelectorAll('.tf-btn');
+            buttons.forEach(btn => {{
+                if (btn.innerText === timeframe) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }});
+
+            // Slice dataset according to timeframe
+            let count = dates.length;
+            if (timeframe === '1M') count = Math.min(21, dates.length);
+            else if (timeframe === '3M') count = Math.min(63, dates.length);
+            else if (timeframe === '6M') count = Math.min(126, dates.length);
+
+            const filteredDates = dates.slice(-count);
+            const filteredPrices = prices.slice(-count);
+
+            const ctx = document.getElementById('modalChartCanvas').getContext('2d');
+
+            if (modalChartInstance) {{
+                modalChartInstance.destroy();
+            }}
+
+            modalChartInstance = new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: filteredDates,
+                    datasets: [{{
+                        label: 'Price (SGD)',
+                        data: filteredPrices,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 1,
+                        tension: 0.1
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{
+                        legend: {{ display: false }},
+                        tooltip: {{ mode: 'index', intersect: false }}
+                    }},
+                    scales: {{
+                        x: {{
+                            grid: {{ color: '#1e293b' }},
+                            ticks: {{ color: '#94a3b8', maxTicksLimit: 8 }}
+                        }},
+                        y: {{
+                            grid: {{ color: '#1e293b' }},
+                            ticks: {{ color: '#94a3b8' }}
+                        }}
+                    }}
+                }}
+            }});
         }}
 
         function closeModal() {{
