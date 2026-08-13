@@ -1,15 +1,15 @@
 {
-  "updated_at_sgt": "2026-08-13 16:32:42 SGT",
+  "updated_at_sgt": "2026-08-13 16:33:50 SGT",
   "data": [
     {
       "ticker": "D05.SI",
       "name": "DBS Group Holdings",
       "sector": "Banking",
-      "price": 76.46,
+      "price": 76.45,
       "confidence_score": 78,
       "trade_signal": "BUY",
-      "stop_loss": 74.17,
-      "take_profit": 81.05,
+      "stop_loss": 74.16,
+      "take_profit": 81.04,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -35,7 +35,7 @@
         76.33,
         76.99,
         75.85,
-        76.46
+        76.45
       ],
       "daily_dates": [
         "2026-07-13",
@@ -129,11 +129,11 @@
       "ticker": "U11.SI",
       "name": "UOB",
       "sector": "Banking",
-      "price": 41.7,
+      "price": 41.72,
       "confidence_score": 58,
       "trade_signal": "WATCH",
-      "stop_loss": 40.45,
-      "take_profit": 44.2,
+      "stop_loss": 40.47,
+      "take_profit": 44.22,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -159,7 +159,7 @@
         43.3,
         42.16,
         41.95,
-        41.7
+        41.72
       ],
       "daily_dates": [
         "2026-07-13",
@@ -253,11 +253,11 @@
       "ticker": "S68.SI",
       "name": "Singapore Exchange",
       "sector": "Financial Services",
-      "price": 24.98,
+      "price": 24.97,
       "confidence_score": 78,
       "trade_signal": "BUY",
-      "stop_loss": 24.23,
-      "take_profit": 26.48,
+      "stop_loss": 24.22,
+      "take_profit": 26.47,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -283,7 +283,7 @@
         24.51,
         25.2,
         24.96,
-        24.98
+        24.97
       ],
       "daily_dates": [
         "2026-07-13",
@@ -315,11 +315,11 @@
       "ticker": "C6L.SI",
       "name": "Singapore Airlines",
       "sector": "Aviation",
-      "price": 7.07,
+      "price": 7.06,
       "confidence_score": 58,
       "trade_signal": "WATCH",
-      "stop_loss": 6.86,
-      "take_profit": 7.49,
+      "stop_loss": 6.85,
+      "take_profit": 7.48,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -345,7 +345,7 @@
         7.6,
         7.15,
         7.09,
-        7.07
+        7.06
       ],
       "daily_dates": [
         "2026-07-13",
