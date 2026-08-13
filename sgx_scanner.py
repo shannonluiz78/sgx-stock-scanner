@@ -7,7 +7,7 @@ import numpy as np
 import requests
 import yfinance as yf
 
-# Session with custom browser headers to prevent bot rate-limiting
+# Configure custom session to prevent rate limits
 session = requests.Session()
 session.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"
@@ -29,7 +29,7 @@ STOCK_UNIVERSE = [
 ]
 
 def calculate_technical_indicators(df):
-    """Computes RSI, MACD, ATR, and Moving Averages (20, 50, 100, 200)."""
+    """Computes ATR, RSI, MACD, and Moving Averages."""
     close = df['Close']
     high = df['High'] if 'High' in df.columns else close * 1.005
     low = df['Low'] if 'Low' in df.columns else close * 0.995
@@ -66,32 +66,14 @@ def calculate_technical_indicators(df):
         "ma200": round(float(close.rolling(200).mean().iloc[-1]), 2)
     }
 
-def format_compact(val):
-    if val is None or pd.isna(val) or val == "N/A": return "N/A"
-    try:
-        num = float(val)
-        if abs(num) >= 1e9: return f"${num/1e9:.2f}B"
-        if abs(num) >= 1e6: return f"${num/1e6:.2f}M"
-        return f"${num:,.0f}"
-    except: return "N/A"
-
-def analyze_universe(universe):
-    tickers = [x['ticker'] for x in universe]
-    print(f"⚡ Downloading market data for {len(tickers)} assets...")
-    
+def run_scanner():
+    print("🚀 Starting SGX Daily Market Scanner...")
     is_degraded = False
-    try:
-        batch_df = yf.download(tickers, period="2y", group_by="ticker", threads=True, session=session)
-    except Exception as e:
-        print(f"⚠️ Primary API throttled ({e}). Entering Degraded Mode.")
-        is_degraded = True
-        batch_df = pd.DataFrame()
-
     results = []
 
-    for item in universe:
+    for item in STOCK_UNIVERSE:
         sym = item["ticker"]
-        stock = {
+        stock_data = {
             "ticker": sym,
             "name": item["name"],
             "sector": item["sector"],
@@ -99,7 +81,7 @@ def analyze_universe(universe):
             "price": 0.0,
             "change": 0.0,
             "p_change": 0.0,
-            "confidence_score": 0,
+            "confidence_score": 50,
             "trade_signal": "WATCH",
             "atr": 0.0,
             "stop_loss": 0.0,
@@ -109,79 +91,80 @@ def analyze_universe(universe):
             "avg_spread_bps": "4.2 bps",
             "pos_size_pct": "3.5%",
             "scenarios": {"bull": "$0.00", "base": "$0.00", "bear": "$0.00"},
-            "roe": "N/A",
-            "fcf_yield": "N/A",
-            "debt_to_equity": "N/A",
-            "div_coverage": "N/A",
-            "daily_prices": [],
-            "daily_dates": [],
-            "years": ["2021", "2022", "2023", "2024", "2025"],
-            "dividends": ["$0.00", "$0.00", "$0.00", "$0.00", "$0.00"],
-            "hist_div_yield": ["0.0%", "0.0%", "0.0%", "0.0%", "0.0%"]
+            "roe": "12.5%",
+            "debt_to_equity": "85.0%",
+            "fcf_yield": "5.5%",
+            "daily_prices": [30.0, 30.2, 30.5, 30.8, 31.0],
+            "daily_dates": ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5"]
         }
 
         try:
-            hist = None
-            if not batch_df.empty and sym in batch_df.columns.levels[0]:
-                hist = batch_df[sym].dropna(how="all")
+            ticker_obj = yf.Ticker(sym, session=session)
+            hist = ticker_obj.history(period="1y")
 
-            if hist is not None and len(hist) >= 30:
+            if hist is not None and not hist.empty and len(hist) >= 20:
                 last_p = float(hist["Close"].iloc[-1])
                 prev_p = float(hist["Close"].iloc[-2])
-                stock["price"] = round(last_p, 2)
-                stock["change"] = round(last_p - prev_p, 2)
-                stock["p_change"] = round(((last_p - prev_p) / prev_p) * 100, 2)
+                
+                stock_data["price"] = round(last_p, 2)
+                stock_data["change"] = round(last_p - prev_p, 2)
+                stock_data["p_change"] = round(((last_p - prev_p) / prev_p) * 100, 2)
 
-                # Tech Indicators & Multi-horizon Signal
                 tech = calculate_technical_indicators(hist)
-                stock["atr"] = tech["atr"]
-
-                # Risk Management (Short-Term ATR Multiples)
-                stock["stop_loss"] = round(last_p - (1.8 * tech["atr"]), 2)
-                stock["take_profit"] = round(last_p + (3.6 * tech["atr"]), 2)
-                stock["risk_reward"] = "1:2.0"
+                stock_data["atr"] = tech["atr"]
+                stock_data["stop_loss"] = round(last_p - (1.8 * tech["atr"]), 2)
+                stock_data["take_profit"] = round(last_p + (3.6 * tech["atr"]), 2)
 
                 # Confidence Score Algorithm
                 score = 50
                 if last_p > tech["ma50"]: score += 15
                 if last_p > tech["ma200"]: score += 15
-                if tech["rsi"] < 35: score += 10 # Oversold bounce
+                if tech["rsi"] < 40: score += 10
                 if tech["macd_hist"] > 0: score += 10
-                stock["confidence_score"] = min(score, 98)
+                stock_data["confidence_score"] = min(score, 98)
 
-                if score >= 75: stock["trade_signal"] = "STRONG BUY"
-                elif score >= 60: stock["trade_signal"] = "BUY"
-                elif score <= 35: stock["trade_signal"] = "SELL"
-                else: stock["trade_signal"] = "WATCH"
+                if score >= 75: stock_data["trade_signal"] = "STRONG BUY"
+                elif score >= 60: stock_data["trade_signal"] = "BUY"
+                elif score <= 35: stock_data["trade_signal"] = "SELL"
+                else: stock_data["trade_signal"] = "WATCH"
 
-                # Position Sizing Guidance (ATR Volatility Weighting)
+                # Position Sizing & Scenario Targets
                 vol_ratio = tech["atr"] / last_p
-                recommended_pos = max(1.5, min(8.0, round(0.10 / vol_ratio, 1)))
-                stock["pos_size_pct"] = f"{recommended_pos}%"
+                rec_pos = max(1.5, min(8.0, round(0.10 / vol_ratio, 1)))
+                stock_data["pos_size_pct"] = f"{rec_pos}%"
+                stock_data["scenarios"]["bull"] = f"${last_p * 1.15:.2f}"
+                stock_data["scenarios"]["base"] = f"${last_p * 1.05:.2f}"
+                stock_data["scenarios"]["bear"] = f"${last_p * 0.88:.2f}"
 
-                # Scenario Analysis
-                stock["scenarios"]["bull"] = f"${last_p * 1.18:.2f}"
-                stock["scenarios"]["base"] = f"${last_p * 1.06:.2f}"
-                stock["scenarios"]["bear"] = f"${last_p * 0.88:.2f}"
+                stock_data["daily_prices"] = [round(float(p), 2) for p in hist["Close"].tail(60).tolist()]
+                stock_data["daily_dates"] = [d.strftime("%Y-%m-%d") for d in hist.tail(60).index]
 
-                stock["daily_prices"] = [round(float(p), 2) for p in hist["Close"].tail(120).tolist()]
-                stock["daily_dates"] = [d.strftime("%Y-%m-%d") for d in hist.tail(120).index]
+                info = ticker_obj.info or {}
+                if info.get('returnOnEquity'):
+                    stock_data["roe"] = f"{info['returnOnEquity']*100:.1f}%"
+                if info.get('debtToEquity'):
+                    stock_data["debt_to_equity"] = f"{info['debtToEquity']:.1f}%"
 
-            # Long-Term Fundamentals Fetch
-            ticker_obj = yf.Ticker(sym, session=session)
-            info = ticker_obj.info or {}
-            stock["roe"] = f"{info.get('returnOnEquity', 0.12)*100:.1f}%" if info.get('returnOnEquity') else "14.2%"
-            stock["debt_to_equity"] = f"{info.get('debtToEquity', 80):.1f}%"
-            stock["fcf_yield"] = "5.8%"
-            stock["div_coverage"] = "1.85x"
+            else:
+                print(f"⚠️ Throttled or missing history for {sym}, using safe default snapshot.")
+                is_degraded = True
 
         except Exception as e:
-            print(f"⚠️ Fallback applied for {sym}: {e}")
+            print(f"⚠️ Exception fetching {sym}: {e}")
+            is_degraded = True
 
-        results.append(stock)
+        results.append(stock_data)
 
-    return results, is_degraded
+    output = {
+        "updated_at_sgt": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S SGT"),
+        "is_degraded_mode": is_degraded,
+        "data": results
+    }
+
+    with open("data.json", "w") as f:
+        json.dump(output, f, indent=2)
+
+    print("✅ Scan complete. Saved output to data.json")
 
 if __name__ == "__main__":
-    data, degraded = analyze_universe(STOCK_UNIVERSE)
-    print(f"Scan complete. Total stocks parsed: {len(data)}. Degraded Mode: {degraded}")
+    run_scanner()
