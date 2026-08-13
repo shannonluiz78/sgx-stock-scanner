@@ -80,6 +80,59 @@ def format_compact(val):
         return f"${num:,.0f}"
     except: return "N/A"
 
+def send_telegram_alert(all_stocks):
+    """Sends instant alerts for stocks triggering target signals."""
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        print("ℹ️ Telegram credentials missing in environment variables. Skipping alert notification.")
+        return
+
+    triggered_stocks = []
+    for s in all_stocks:
+        sig = s.get("signal", "")
+        # Trigger conditions
+        if "OVERSOLD" in sig or "BULLISH TREND" in sig or "VOL SURGE" in sig:
+            triggered_stocks.append(s)
+
+    if not triggered_stocks:
+        print("ℹ️ No alert triggers detected in today's scan.")
+        return
+
+    # Build Alert Message
+    date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    msg_lines = [f"🚨 <b>SGX Stock Scanner Alerts</b> ({date_str})\n"]
+
+    for s in triggered_stocks:
+        price_str = f"${s['price']:.2f}" if isinstance(s['price'], (int, float)) else "N/A"
+        rsi_str = str(s['rsi']) if s['rsi'] != 'N/A' else 'N/A'
+        
+        msg_lines.append(
+            f"• <b>{s['ticker']} ({s['name']})</b>\n"
+            f"  <b>Price:</b> {price_str} | <b>Signal:</b> <code>{s['signal']}</code>\n"
+            f"  <b>RSI:</b> {rsi_str} | <b>Div Yield:</b> {format_pct(s['div_yield'])}\n"
+        )
+
+    msg_text = "\n".join(msg_lines)
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": msg_text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+
+    try:
+        res = requests.post(url, json=payload, timeout=10)
+        if res.status_code == 200:
+            print(f"✅ Telegram alert sent successfully ({len(triggered_stocks)} stocks flagged).")
+        else:
+            print(f"⚠️ Failed to send Telegram alert: {res.text}")
+    except Exception as e:
+        print(f"⚠️ Telegram alert error: {e}")
+
 def get_statement_row(df, possible_names):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty: return None
     for name in possible_names:
@@ -119,7 +172,6 @@ def analyze_universe_batch(stock_universe):
             "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
         }
 
-        # 1. Price Data Parsing
         try:
             hist = None
             if not batch_df.empty:
@@ -135,11 +187,9 @@ def analyze_universe_batch(stock_universe):
                 data["change"] = last_close - prev_close
                 data["p_change"] = (data["change"] / (prev_close + 1e-9)) * 100
 
-                # Full Daily Data for Interactive Modal Charting
                 data["daily_prices"] = [round(float(p), 2) for p in hist["Close"].tolist()]
                 data["daily_dates"] = [d.strftime("%Y-%m-%d") if hasattr(d, 'strftime') else str(d) for d in hist.index]
 
-                # Sampled Data for Mini Sparklines
                 sample_step = max(1, len(hist) // 20)
                 sampled_df = hist.iloc[::sample_step]
                 data["hist_prices"] = [round(float(p), 2) for p in sampled_df["Close"].tolist()]
@@ -175,16 +225,13 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
 
-        # 2. Metadata & Financial Statements Parsing
         try:
             time.sleep(0.3)
             ticker_obj = yf.Ticker(symbol, session=session)
             
             info = {}
-            try:
-                info = ticker_obj.info or {}
-            except Exception:
-                pass
+            try: info = ticker_obj.info or {}
+            except Exception: pass
 
             data["mkt_cap_raw"] = info.get("marketCap", 0) or 0
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
@@ -193,17 +240,12 @@ def analyze_universe_batch(stock_universe):
             data["div_yield"] = float(info.get("dividendYield", 0) or 0)
 
             eps = info.get("trailingEps")
-            if eps and eps > 0:
-                data["intrinsic_val"] = f"${eps * 15.5:.2f}"
+            if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
 
-            if is_anchor or data["mkt_cap_raw"] > 1e10:
-                data["moat"] = "WIDE MOAT"
-            elif data["mkt_cap_raw"] > 2e9:
-                data["moat"] = "NARROW MOAT"
-            else:
-                data["moat"] = "MODERATE MOAT"
+            if is_anchor or data["mkt_cap_raw"] > 1e10: data["moat"] = "WIDE MOAT"
+            elif data["mkt_cap_raw"] > 2e9: data["moat"] = "NARROW MOAT"
+            else: data["moat"] = "MODERATE MOAT"
 
-            # Financials
             try:
                 fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
@@ -213,8 +255,7 @@ def analyze_universe_batch(stock_universe):
                     net_row = get_statement_row(fin, ["Net Income", "Net Income Common Stockholders"])
                     data["revenue"] = [format_compact(rev_row[c]) if rev_row is not None and c in rev_row else "N/A" for c in cols][::-1]
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
-            except Exception:
-                pass
+            except Exception: pass
 
             try:
                 cf = ticker_obj.cashflow
@@ -227,8 +268,7 @@ def analyze_universe_batch(stock_universe):
                     fcf_vals = [o - ca for o, ca in zip(ocf_vals, capex_vals)]
                     data["ocf"] = [format_compact(v) for v in ocf_vals][::-1]
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
-            except Exception:
-                pass
+            except Exception: pass
 
             try:
                 bs = ticker_obj.balance_sheet
@@ -242,13 +282,11 @@ def analyze_universe_batch(stock_universe):
                     data["long_debt"] = format_compact(lt_debt[c0]) if lt_debt is not None and c0 in lt_debt else "N/A"
                     data["assets_cash"] = format_compact(cash[c0]) if cash is not None and c0 in cash else "N/A"
                     data["assets_ppe"] = format_compact(ppe[c0]) if ppe is not None and c0 in ppe else "N/A"
-            except Exception:
-                pass
+            except Exception: pass
 
         except Exception as e:
             print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
 
-        # 3. Scoring
         if is_anchor or data["mkt_cap_raw"] > 8e9:
             data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
 
@@ -394,7 +432,6 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
         .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
         
-        /* Modal Styling */
         .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
         .modal-content {{ background: #1e293b; max-width: 900px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
         .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
@@ -402,7 +439,6 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
         .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
         
-        /* Interactive Chart Controls */
         .modal-chart-box {{ background: #0f172a; padding: 16px; border-radius: 8px; margin: 16px 0; }}
         .tf-btn-group {{ display: flex; gap: 8px; margin-bottom: 12px; justify-content: flex-end; }}
         .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }}
@@ -551,8 +587,6 @@ def render_html_dashboard(all_stocks, top_8_recs):
             document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
 
             document.getElementById('deepDiveModal').style.display = 'flex';
-            
-            // Render 1Y chart by default
             updateModalChart('1Y');
         }}
 
@@ -565,14 +599,12 @@ def render_html_dashboard(all_stocks, top_8_recs):
 
             if (dates.length === 0 || prices.length === 0) return;
 
-            // Highlight active button
             const buttons = document.querySelectorAll('.tf-btn');
             buttons.forEach(btn => {{
                 if (btn.innerText === timeframe) btn.classList.add('active');
                 else btn.classList.remove('active');
             }});
 
-            // Slice dataset according to timeframe
             let count = dates.length;
             if (timeframe === '1M') count = Math.min(21, dates.length);
             else if (timeframe === '3M') count = Math.min(63, dates.length);
@@ -605,19 +637,10 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 options: {{
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {{
-                        legend: {{ display: false }},
-                        tooltip: {{ mode: 'index', intersect: false }}
-                    }},
+                    plugins: {{ legend: {{ display: false }} }},
                     scales: {{
-                        x: {{
-                            grid: {{ color: '#1e293b' }},
-                            ticks: {{ color: '#94a3b8', maxTicksLimit: 8 }}
-                        }},
-                        y: {{
-                            grid: {{ color: '#1e293b' }},
-                            ticks: {{ color: '#94a3b8' }}
-                        }}
+                        x: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8', maxTicksLimit: 8 }} }},
+                        y: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8' }} }}
                     }}
                 }}
             }});
@@ -635,10 +658,13 @@ def render_html_dashboard(all_stocks, top_8_recs):
     print("✅ Dashboard generated successfully: index.html")
 
 def main():
-    print(f"Starting SGX scanner...")
+    print("Starting SGX scanner...")
     analyzed = analyze_universe_batch(STOCK_UNIVERSE)
     top_8 = allocate_top_8_buckets(analyzed)
     render_html_dashboard(analyzed, top_8)
+    
+    # Send Telegram Alerts
+    send_telegram_alert(analyzed)
 
 if __name__ == "__main__":
     main()
