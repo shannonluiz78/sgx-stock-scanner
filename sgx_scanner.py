@@ -81,7 +81,7 @@ def format_compact(val):
     except: return "N/A"
 
 def send_telegram_alert(all_stocks):
-    """Sends instant alerts for stocks triggering target signals."""
+    """Sends Telegram alerts prioritized by Bullish/Vol Surge signals first, followed by Oversold stocks."""
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
@@ -89,30 +89,46 @@ def send_telegram_alert(all_stocks):
         print("ℹ️ Telegram credentials missing in environment variables. Skipping alert notification.")
         return
 
-    triggered_stocks = []
+    priority_stocks = []
+    oversold_stocks = []
+
     for s in all_stocks:
         sig = s.get("signal", "")
-        # Trigger conditions
-        if "OVERSOLD" in sig or "BULLISH TREND" in sig or "VOL SURGE" in sig:
-            triggered_stocks.append(s)
+        if "BULLISH TREND" in sig or "VOL SURGE" in sig:
+            priority_stocks.append(s)
+        elif "OVERSOLD" in sig:
+            oversold_stocks.append(s)
 
-    if not triggered_stocks:
+    if not priority_stocks and not oversold_stocks:
         print("ℹ️ No alert triggers detected in today's scan.")
         return
 
-    # Build Alert Message
     date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     msg_lines = [f"🚨 <b>SGX Stock Scanner Alerts</b> ({date_str})\n"]
 
-    for s in triggered_stocks:
-        price_str = f"${s['price']:.2f}" if isinstance(s['price'], (int, float)) else "N/A"
-        rsi_str = str(s['rsi']) if s['rsi'] != 'N/A' else 'N/A'
-        
-        msg_lines.append(
-            f"• <b>{s['ticker']} ({s['name']})</b>\n"
-            f"  <b>Price:</b> {price_str} | <b>Signal:</b> <code>{s['signal']}</code>\n"
-            f"  <b>RSI:</b> {rsi_str} | <b>Div Yield:</b> {format_pct(s['div_yield'])}\n"
-        )
+    if priority_stocks:
+        msg_lines.append("🔥 <b>BULLISH TREND / VOLUME SURGE SIGNALS:</b>")
+        for s in priority_stocks:
+            price_str = f"${s['price']:.2f}" if isinstance(s['price'], (int, float)) else "N/A"
+            rsi_str = str(s['rsi']) if s['rsi'] != 'N/A' else 'N/A'
+            msg_lines.append(
+                f"• <b>{s['ticker']} ({s['name']})</b>\n"
+                f"  <b>Price:</b> {price_str} | <b>Target:</b> <code>{s['target_price']}</code>\n"
+                f"  <b>Signal:</b> <code>{s['signal']}</code>\n"
+                f"  <b>RSI:</b> {rsi_str} | <b>Div Yield:</b> {format_pct(s['div_yield'])}\n"
+            )
+
+    if oversold_stocks:
+        msg_lines.append("📉 <b>OVERSOLD OPPORTUNITIES (RSI ≤ 30):</b>")
+        for s in oversold_stocks:
+            price_str = f"${s['price']:.2f}" if isinstance(s['price'], (int, float)) else "N/A"
+            rsi_str = str(s['rsi']) if s['rsi'] != 'N/A' else 'N/A'
+            msg_lines.append(
+                f"• <b>{s['ticker']} ({s['name']})</b>\n"
+                f"  <b>Price:</b> {price_str} | <b>Target:</b> <code>{s['target_price']}</code>\n"
+                f"  <b>Signal:</b> <code>{s['signal']}</code>\n"
+                f"  <b>RSI:</b> {rsi_str} | <b>Div Yield:</b> {format_pct(s['div_yield'])}\n"
+            )
 
     msg_text = "\n".join(msg_lines)
 
@@ -127,7 +143,7 @@ def send_telegram_alert(all_stocks):
     try:
         res = requests.post(url, json=payload, timeout=10)
         if res.status_code == 200:
-            print(f"✅ Telegram alert sent successfully ({len(triggered_stocks)} stocks flagged).")
+            print(f"✅ Telegram alert sent successfully ({len(priority_stocks) + len(oversold_stocks)} stocks flagged).")
         else:
             print(f"⚠️ Failed to send Telegram alert: {res.text}")
     except Exception as e:
@@ -143,10 +159,11 @@ def get_statement_row(df, possible_names):
 
 def analyze_universe_batch(stock_universe):
     tickers = [item["ticker"] for item in stock_universe]
-    print(f"⚡ Downloading 1-year price history for {len(tickers)} tickers in 1 batch request...")
+    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers in 1 batch request...")
 
     try:
-        batch_df = yf.download(tickers, period="1y", group_by="ticker", threads=True, progress=False, session=session)
+        # Fetch 5 years of daily data to support 3Y and 5Y modal charts
+        batch_df = yf.download(tickers, period="5y", group_by="ticker", threads=True, progress=False, session=session)
     except Exception as e:
         print(f"⚠️ Warning during batch download: {e}")
         batch_df = pd.DataFrame()
@@ -164,7 +181,8 @@ def analyze_universe_batch(stock_universe):
             "price": "N/A", "change": 0.0, "p_change": 0.0, "pe_ratio": "N/A", "pb_ratio": "N/A",
             "div_yield": 0.0, "mkt_cap": "N/A", "mkt_cap_raw": 0, "52w_range": "N/A",
             "ma50": "N/A", "ma200": "N/A", "rsi": "N/A", "vol_surge": False,
-            "intrinsic_val": "N/A", "moat": "Medium", "short_debt": "N/A", "long_debt": "N/A",
+            "intrinsic_val": "N/A", "target_price": "N/A", "moat": "Medium",
+            "short_debt": "N/A", "long_debt": "N/A",
             "hist_prices": [], "hist_labels": [],
             "daily_prices": [], "daily_dates": [],
             "years": [], "revenue": [], "net_income": [],
@@ -187,11 +205,14 @@ def analyze_universe_batch(stock_universe):
                 data["change"] = last_close - prev_close
                 data["p_change"] = (data["change"] / (prev_close + 1e-9)) * 100
 
+                # Full 5-Year Daily History for Interactive Modal Charting
                 data["daily_prices"] = [round(float(p), 2) for p in hist["Close"].tolist()]
                 data["daily_dates"] = [d.strftime("%Y-%m-%d") if hasattr(d, 'strftime') else str(d) for d in hist.index]
 
-                sample_step = max(1, len(hist) // 20)
-                sampled_df = hist.iloc[::sample_step]
+                # Mini Sparkline Sampling (Last 1 Year)
+                one_yr_hist = hist.tail(252)
+                sample_step = max(1, len(one_yr_hist) // 20)
+                sampled_df = one_yr_hist.iloc[::sample_step]
                 data["hist_prices"] = [round(float(p), 2) for p in sampled_df["Close"].tolist()]
                 data["hist_labels"] = [d.strftime("%b %y") if hasattr(d, 'strftime') else str(d) for d in sampled_df.index]
 
@@ -213,18 +234,20 @@ def analyze_universe_batch(stock_universe):
                 avg_vol_20 = float(hist["Volume"].tail(20).mean()) if "Volume" in hist.columns and len(hist) >= 20 else 1
                 data["vol_surge"] = bool(c_vol > 1.5 * avg_vol_20)
 
+                # Signal Determination with RSI <= 30 Threshold
                 if data["ma50"] != "N/A" and data["ma200"] != "N/A":
                     if data["ma50"] > data["ma200"]:
                         data["signal"] = "BULLISH TREND"
                 if data["signal"] == "NEUTRAL" and isinstance(c_rsi, (int, float)):
-                    if c_rsi < 35: data["signal"] = "OVERSOLD"
-                    elif c_rsi > 68: data["signal"] = "OVERBOUGHT"
+                    if c_rsi <= 30: data["signal"] = "OVERSOLD"
+                    elif c_rsi >= 70: data["signal"] = "OVERBOUGHT"
                 if data["vol_surge"]:
                     data["signal"] += " + VOL SURGE"
 
         except Exception as e:
             print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
 
+        # Metadata & Fundamentals Parsing
         try:
             time.sleep(0.3)
             ticker_obj = yf.Ticker(symbol, session=session)
@@ -242,10 +265,20 @@ def analyze_universe_batch(stock_universe):
             eps = info.get("trailingEps")
             if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
 
+            # Target Price Logic (Analyst Target -> Intrinsic Valuation -> +15% Technical Target)
+            target_mean = info.get("targetMeanPrice")
+            if target_mean and not pd.isna(target_mean):
+                data["target_price"] = f"${float(target_mean):.2f}"
+            elif data["intrinsic_val"] != "N/A":
+                data["target_price"] = data["intrinsic_val"]
+            elif isinstance(data["price"], (int, float)):
+                data["target_price"] = f"${data['price'] * 1.15:.2f}"
+
             if is_anchor or data["mkt_cap_raw"] > 1e10: data["moat"] = "WIDE MOAT"
             elif data["mkt_cap_raw"] > 2e9: data["moat"] = "NARROW MOAT"
             else: data["moat"] = "MODERATE MOAT"
 
+            # Financial Statements (5-Year Rolling Data)
             try:
                 fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
@@ -257,17 +290,23 @@ def analyze_universe_batch(stock_universe):
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
             except Exception: pass
 
+            # Cash Flow & 5-Year Dividends Paid
             try:
                 cf = ticker_obj.cashflow
                 if cf is not None and not cf.empty:
                     cols = list(cf.columns[:5])
                     ocf_row = get_statement_row(cf, ["Operating Cash Flow", "Total Cash From Operating Activities"])
                     capex_row = get_statement_row(cf, ["Capital Expenditure", "Capital Expenditures"])
+                    div_row = get_statement_row(cf, ["Cash Dividends Paid", "Common Stock Dividend Paid", "Dividends Paid", "Total Cash Dividends Paid", "Payment Of Dividend"])
+                    
                     ocf_vals = [ocf_row[c] if ocf_row is not None and c in ocf_row else 0 for c in cols]
                     capex_vals = [abs(capex_row[c]) if capex_row is not None and c in capex_row else 0 for c in cols]
                     fcf_vals = [o - ca for o, ca in zip(ocf_vals, capex_vals)]
+                    div_vals = [abs(div_row[c]) if div_row is not None and c in div_row else "N/A" for c in cols]
+
                     data["ocf"] = [format_compact(v) for v in ocf_vals][::-1]
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
+                    data["dividends"] = [format_compact(v) if v != "N/A" else "N/A" for v in div_vals][::-1]
             except Exception: pass
 
             try:
@@ -287,13 +326,14 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
 
+        # Scoring Logic
         if is_anchor or data["mkt_cap_raw"] > 8e9:
             data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
 
         mom_score = 0
         if "BULLISH TREND" in data["signal"]: mom_score += 30
         if data["vol_surge"]: mom_score += 20
-        if isinstance(data["rsi"], (int, float)) and 40 <= data["rsi"] <= 65: mom_score += 15
+        if isinstance(data["rsi"], (int, float)) and 30 <= data["rsi"] <= 65: mom_score += 15
         data["scores"]["momentum"] = mom_score
 
         data["scores"]["growth"] = (15 if data["sector"] in ["Technology", "Consumer Staples", "Fintech / Wealth"] else 5) + (10 if data["moat"] != "MODERATE MOAT" else 0)
@@ -351,8 +391,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
             </div>
             <div class="rec-stats">
                 <span>Signal: <strong>{stk['signal']}</strong></span>
+                <span>Target: <strong>{stk['target_price']}</strong></span>
                 <span>Div Yield: <strong>{div_str}</strong></span>
-                <span>P/B: <strong>{stk['pb_ratio']}</strong></span>
                 <span>Moat: <strong>{stk['moat']}</strong></span>
             </div>
             <div class="chart-container">
@@ -383,7 +423,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
             <td>{badge}</td>
             <td><span class="signal-tag">{stk['signal']}</span></td>
             <td>{div_str}</td>
-            <td>{stk['pb_ratio']}</td>
+            <td>{stk['target_price']}</td>
             <td>{stk['mkt_cap']}</td>
             <td><button class="btn-detail">Deep Dive & Chart</button></td>
         </tr>
@@ -472,7 +512,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
                         <th>Day Change</th>
                         <th>Signal</th>
                         <th>Div Yield</th>
-                        <th>P/B Ratio</th>
+                        <th>Target Price</th>
                         <th>Market Cap</th>
                         <th>Action</th>
                     </tr>
@@ -496,6 +536,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
                     <button class="tf-btn" onclick="updateModalChart('3M')">3M</button>
                     <button class="tf-btn" onclick="updateModalChart('6M')">6M</button>
                     <button class="tf-btn active" onclick="updateModalChart('1Y')">1Y</button>
+                    <button class="tf-btn" onclick="updateModalChart('3Y')">3Y</button>
+                    <button class="tf-btn" onclick="updateModalChart('5Y')">5Y</button>
                 </div>
                 <div class="big-chart-container">
                     <canvas id="modalChartCanvas"></canvas>
@@ -507,11 +549,11 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
                 <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
                 <div>PPE / Buildings: <strong id="m-ppe">N/A</strong></div>
-                <div>Intrinsic Value: <strong id="m-intrinsic">N/A</strong></div>
+                <div>Target Price: <strong id="m-target">N/A</strong></div>
                 <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
             </div>
 
-            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financial & Cash Flow Statement</h3>
+            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financial & Dividend Statement</h3>
             <table class="data-table">
                 <thead>
                     <tr id="m-hist-years"><th>Metric</th></tr>
@@ -521,6 +563,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
                     <tr id="m-hist-net"><td>Net Income</td></tr>
                     <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
                     <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
+                    <tr id="m-hist-div"><td>Dividends Paid</td></tr>
                 </tbody>
             </table>
         </div>
@@ -575,7 +618,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
             document.getElementById('m-lt-debt').innerText = item.long_debt;
             document.getElementById('m-cash').innerText = item.assets_cash;
             document.getElementById('m-ppe').innerText = item.assets_ppe;
-            document.getElementById('m-intrinsic').innerText = item.intrinsic_val;
+            document.getElementById('m-target').innerText = item.target_price;
             document.getElementById('m-moat').innerText = item.moat;
 
             const yearsHeader = '<th>Metric</th>' + (item.years && item.years.length > 0 ? item.years.map(y => `<th>${{y}}</th>`).join('') : '<th>N/A</th>');
@@ -585,6 +628,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
             document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
             document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
             document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-div').innerHTML = '<td>Dividends Paid</td>' + (item.dividends && item.dividends.length > 0 ? item.dividends.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
 
             document.getElementById('deepDiveModal').style.display = 'flex';
             updateModalChart('1Y');
@@ -609,6 +653,9 @@ def render_html_dashboard(all_stocks, top_8_recs):
             if (timeframe === '1M') count = Math.min(21, dates.length);
             else if (timeframe === '3M') count = Math.min(63, dates.length);
             else if (timeframe === '6M') count = Math.min(126, dates.length);
+            else if (timeframe === '1Y') count = Math.min(252, dates.length);
+            else if (timeframe === '3Y') count = Math.min(756, dates.length);
+            else if (timeframe === '5Y') count = dates.length;
 
             const filteredDates = dates.slice(-count);
             const filteredPrices = prices.slice(-count);
