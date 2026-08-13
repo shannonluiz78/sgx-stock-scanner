@@ -162,7 +162,6 @@ def analyze_universe_batch(stock_universe):
     print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers in 1 batch request...")
 
     try:
-        # Fetch 5 years of daily data to support 3Y and 5Y modal charts
         batch_df = yf.download(tickers, period="5y", group_by="ticker", threads=True, progress=False, session=session)
     except Exception as e:
         print(f"⚠️ Warning during batch download: {e}")
@@ -186,8 +185,9 @@ def analyze_universe_batch(stock_universe):
             "hist_prices": [], "hist_labels": [],
             "daily_prices": [], "daily_dates": [],
             "years": [], "revenue": [], "net_income": [],
-            "ocf": [], "fcf": [], "dividends": [], "assets_cash": "N/A", "assets_st_inv": "N/A",
-            "assets_ppe": "N/A", "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
+            "ocf": [], "fcf": [], "dividends": [], "hist_div_yield": [],
+            "assets_cash": "N/A", "assets_st_inv": "N/A", "assets_ppe": "N/A",
+            "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
         }
 
         try:
@@ -205,11 +205,9 @@ def analyze_universe_batch(stock_universe):
                 data["change"] = last_close - prev_close
                 data["p_change"] = (data["change"] / (prev_close + 1e-9)) * 100
 
-                # Full 5-Year Daily History for Interactive Modal Charting
                 data["daily_prices"] = [round(float(p), 2) for p in hist["Close"].tolist()]
                 data["daily_dates"] = [d.strftime("%Y-%m-%d") if hasattr(d, 'strftime') else str(d) for d in hist.index]
 
-                # Mini Sparkline Sampling (Last 1 Year)
                 one_yr_hist = hist.tail(252)
                 sample_step = max(1, len(one_yr_hist) // 20)
                 sampled_df = one_yr_hist.iloc[::sample_step]
@@ -234,7 +232,6 @@ def analyze_universe_batch(stock_universe):
                 avg_vol_20 = float(hist["Volume"].tail(20).mean()) if "Volume" in hist.columns and len(hist) >= 20 else 1
                 data["vol_surge"] = bool(c_vol > 1.5 * avg_vol_20)
 
-                # Signal Determination with RSI <= 30 Threshold
                 if data["ma50"] != "N/A" and data["ma200"] != "N/A":
                     if data["ma50"] > data["ma200"]:
                         data["signal"] = "BULLISH TREND"
@@ -265,7 +262,6 @@ def analyze_universe_batch(stock_universe):
             eps = info.get("trailingEps")
             if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
 
-            # Target Price Logic (Analyst Target -> Intrinsic Valuation -> +15% Technical Target)
             target_mean = info.get("targetMeanPrice")
             if target_mean and not pd.isna(target_mean):
                 data["target_price"] = f"${float(target_mean):.2f}"
@@ -290,24 +286,66 @@ def analyze_universe_batch(stock_universe):
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
             except Exception: pass
 
-            # Cash Flow & 5-Year Dividends Paid
+            # Cash Flow (Operating & Free Cash Flow)
             try:
                 cf = ticker_obj.cashflow
                 if cf is not None and not cf.empty:
                     cols = list(cf.columns[:5])
                     ocf_row = get_statement_row(cf, ["Operating Cash Flow", "Total Cash From Operating Activities"])
                     capex_row = get_statement_row(cf, ["Capital Expenditure", "Capital Expenditures"])
-                    div_row = get_statement_row(cf, ["Cash Dividends Paid", "Common Stock Dividend Paid", "Dividends Paid", "Total Cash Dividends Paid", "Payment Of Dividend"])
                     
                     ocf_vals = [ocf_row[c] if ocf_row is not None and c in ocf_row else 0 for c in cols]
                     capex_vals = [abs(capex_row[c]) if capex_row is not None and c in capex_row else 0 for c in cols]
                     fcf_vals = [o - ca for o, ca in zip(ocf_vals, capex_vals)]
-                    div_vals = [abs(div_row[c]) if div_row is not None and c in div_row else "N/A" for c in cols]
 
                     data["ocf"] = [format_compact(v) for v in ocf_vals][::-1]
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
-                    data["dividends"] = [format_compact(v) if v != "N/A" else "N/A" for v in div_vals][::-1]
             except Exception: pass
+
+            # 5-Year Dividend Per Share (DPS) & Historical Dividend Yield (%) Calculation
+            try:
+                divs = ticker_obj.dividends
+                if divs is not None and not divs.empty:
+                    if hasattr(divs.index, 'tz') and divs.index.tz is not None:
+                        divs.index = divs.index.tz_localize(None)
+                    
+                    yearly_dps = divs.groupby(divs.index.year).sum()
+                    
+                    dps_list = []
+                    yield_list = []
+                    
+                    for yr in data["years"]:
+                        try:
+                            yr_int = int(yr)
+                            if yr_int in yearly_dps.index:
+                                val = float(yearly_dps.loc[yr_int])
+                                dps_list.append(f"${val:.3f}")
+                                
+                                # Compute yield based on year-end close price
+                                if hist is not None and not hist.empty:
+                                    yr_hist = hist[hist.index.year == yr_int]
+                                    if not yr_hist.empty:
+                                        yr_close = float(yr_hist["Close"].iloc[-1])
+                                        yr_yield = (val / (yr_close + 1e-9)) * 100
+                                        yield_list.append(f"{yr_yield:.2f}%")
+                                    else:
+                                        yield_list.append("N/A")
+                                else:
+                                    yield_list.append("N/A")
+                            else:
+                                dps_list.append("$0.000")
+                                yield_list.append("0.00%")
+                        except Exception:
+                            dps_list.append("N/A")
+                            yield_list.append("N/A")
+                    
+                    data["dividends"] = dps_list
+                    data["hist_div_yield"] = yield_list
+                else:
+                    data["dividends"] = ["$0.000"] * len(data["years"])
+                    data["hist_div_yield"] = ["0.00%"] * len(data["years"])
+            except Exception as e:
+                print(f"⚠️ Note: Dividend calculation failed for {symbol}: {e}")
 
             try:
                 bs = ticker_obj.balance_sheet
@@ -553,7 +591,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
             </div>
 
-            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financial & Dividend Statement</h3>
+            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financials & Dividend History</h3>
             <table class="data-table">
                 <thead>
                     <tr id="m-hist-years"><th>Metric</th></tr>
@@ -563,7 +601,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
                     <tr id="m-hist-net"><td>Net Income</td></tr>
                     <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
                     <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
-                    <tr id="m-hist-div"><td>Dividends Paid</td></tr>
+                    <tr id="m-hist-div"><td>Div / Share (DPS)</td></tr>
+                    <tr id="m-hist-yield"><td>Hist. Div Yield</td></tr>
                 </tbody>
             </table>
         </div>
@@ -628,7 +667,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
             document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
             document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
             document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-            document.getElementById('m-hist-div').innerHTML = '<td>Dividends Paid</td>' + (item.dividends && item.dividends.length > 0 ? item.dividends.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-div').innerHTML = '<td>Div / Share (DPS)</td>' + (item.dividends && item.dividends.length > 0 ? item.dividends.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-yield').innerHTML = '<td>Hist. Div Yield</td>' + (item.hist_div_yield && item.hist_div_yield.length > 0 ? item.hist_div_yield.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
 
             document.getElementById('deepDiveModal').style.display = 'flex';
             updateModalChart('1Y');
