@@ -2,363 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stock Signals Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SGX Stock Screener</title>
   <style>
-    :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --border-color: #334155;
-      --buy-color: #22c55e;
-      --watch-color: #eab308;
-      --sell-color: #ef4444;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      padding: 24px;
-      line-height: 1.5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 24px;
+      background: #f8f9fa;
+      color: #333;
     }
-
-    .header {
-      max-width: 1200px;
-      margin: 0 auto 24px auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border-color);
+    h1 {
+      margin-bottom: 20px;
+      font-size: 1.8rem;
     }
-
-    .header h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-    }
-
-    .timestamp {
-      background-color: var(--card-bg);
-      padding: 8px 14px;
-      border-radius: 20px;
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      border: 1px solid var(--border-color);
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 20px;
-    }
-
-    .card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 12px;
-    }
-
-    .ticker {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #38bdf8;
-    }
-
-    .company-name {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-    }
-
-    .badge {
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .badge-BUY {
-      background-color: rgba(34, 197, 94, 0.2);
-      color: var(--buy-color);
-      border: 1px solid var(--buy-color);
-    }
-
-    .badge-WATCH {
-      background-color: rgba(234, 179, 8, 0.2);
-      color: var(--watch-color);
-      border: 1px solid var(--watch-color);
-    }
-
-    .badge-SELL {
-      background-color: rgba(239, 68, 68, 0.2);
-      color: var(--sell-color);
-      border: 1px solid var(--sell-color);
-    }
-
-    .price-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-
-    .price {
-      font-size: 1.75rem;
-      font-weight: 700;
-    }
-
-    .sector {
-      font-size: 0.8rem;
-      background-color: #334155;
-      padding: 2px 8px;
-      border-radius: 4px;
-      color: var(--text-muted);
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      background-color: rgba(15, 23, 42, 0.5);
-      padding: 12px;
+    .table-container {
+      overflow-x: auto;
+      background: #ffffff;
       border-radius: 8px;
-      font-size: 0.875rem;
-      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
     }
-
-    .stat-item {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .stat-value {
-      font-weight: 600;
-    }
-
-    .sparkline-container {
-      margin-top: auto;
-      padding-top: 10px;
-    }
-
-    .sparkline-title {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    svg.sparkline {
+    table {
       width: 100%;
-      height: 45px;
-      stroke: #38bdf8;
-      stroke-width: 2;
-      fill: none;
-    }
-
-    .error-box {
-      grid-column: 1 / -1;
-      background-color: rgba(239, 68, 68, 0.1);
-      border: 1px solid var(--sell-color);
-      color: var(--text-main);
-      padding: 24px;
-      border-radius: 8px;
+      border-collapse: collapse;
       text-align: left;
     }
-
-    .error-box h3 {
-      color: var(--sell-color);
-      margin-bottom: 8px;
+    th, td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #edf2f7;
     }
-
-    .error-box ul {
-      margin-top: 8px;
-      margin-left: 20px;
-      font-size: 0.9rem;
-      color: var(--text-muted);
+    th {
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    tr:hover {
+      background-color: #f1f5f9;
+    }
+    .green {
+      color: #16a34a;
+      font-weight: 600;
+    }
+    .red {
+      color: #dc2626;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
 
-  <header class="header">
-    <h1>SG Stock Signals</h1>
-    <div class="timestamp" id="last-updated">Loading timestamp...</div>
-  </header>
+  <h1>📈 SGX Stock Screener</h1>
 
-  <main class="container" id="dashboard-container">
-    <p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">
-      Loading stock signals...
-    </p>
-  </main>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Name</th>
+          <th>Price (SGD)</th>
+          <th>Change</th>
+          <th>Change %</th>
+          <th>Volume</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr>
+          <td colspan="6">Loading stock data...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
   <script>
-    async function loadDashboard() {
-      const container = document.getElementById('dashboard-container');
-      const timeElem = document.getElementById('last-updated');
-
-      // Common paths where data.json might live
-      const possiblePaths = ['./data.json', 'data.json', './data/data.json'];
-      let response = null;
-
-      // Try fetching from each possible path with cache-busting timestamp
-      for (const path of possiblePaths) {
-        try {
-          const res = await fetch(`${path}?t=${Date.now()}`);
-          if (res.ok) {
-            response = res;
-            break;
-          }
-        } catch (e) {
-          // keep searching
+    async function loadStockData() {
+      try {
+        // Cache-buster query param ensures the latest data.json is fetched
+        const response = await fetch('./data.json?t=' + new Date().getTime());
+        if (!response.ok) {
+          throw new Error(`HTTP status ${response.status}`);
         }
+        const stocks = await response.json();
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        if (!Array.isArray(stocks) || stocks.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">No stock data available.</td></tr>';
+          return;
+        }
+
+        stocks.forEach(stock => {
+          const isPositive = stock.change >= 0;
+          const colorClass = isPositive ? 'green' : 'red';
+          const sign = isPositive ? '+' : '';
+
+          const row = `
+            <tr>
+              <td><strong>${stock.symbol}</strong></td>
+              <td>${stock.name}</td>
+              <td>$${Number(stock.price).toFixed(3)}</td>
+              <td class="${colorClass}">${sign}${Number(stock.change).toFixed(3)}</td>
+              <td class="${colorClass}">${sign}${Number(stock.change_pct).toFixed(2)}%</td>
+              <td>${Number(stock.volume).toLocaleString()}</td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+      } catch (err) {
+        document.getElementById('table-body').innerHTML = 
+          `<tr><td colspan="6" style="color: red;">Failed to load data: ${err.message}</td></tr>`;
       }
-
-      if (!response) {
-        throw new Error('data.json was not found in the repository root or data/ subfolder.');
-      }
-
-      const json = await response.json();
-
-      // 1. Display Updated Timestamp
-      timeElem.textContent = json.updated_at_sgt ? `Updated: ${json.updated_at_sgt}` : 'Updated: N/A';
-
-      // 2. Extract stock list safely
-      const stocks = Array.isArray(json) ? json : (json.data || []);
-
-      if (!stocks || stocks.length === 0) {
-        container.innerHTML = `<div class="error-box"><h3>No Stocks Found</h3><p>data.json is empty or formatted incorrectly.</p></div>`;
-        return;
-      }
-
-      // 3. Clear container and render stock cards
-      container.innerHTML = '';
-
-      stocks.forEach(stock => {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        const signal = stock.trade_signal || 'WATCH';
-        const sparklineSvg = generateSparkline(stock.daily_prices || []);
-
-        card.innerHTML = `
-          <div>
-            <div class="card-header">
-              <div>
-                <div class="ticker">${stock.ticker}</div>
-                <div class="company-name">${stock.name || stock.ticker}</div>
-              </div>
-              <span class="badge badge-${signal}">${signal}</span>
-            </div>
-
-            <div class="price-row">
-              <span class="price">$${Number(stock.price).toFixed(2)}</span>
-              <span class="sector">${stock.sector || 'SGX'}</span>
-            </div>
-
-            <div class="stats-grid">
-              <div class="stat-item">
-                <span class="stat-label">Stop Loss</span>
-                <span class="stat-value" style="color: var(--sell-color);">$${Number(stock.stop_loss).toFixed(2)}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Take Profit</span>
-                <span class="stat-value" style="color: var(--buy-color);">$${Number(stock.take_profit).toFixed(2)}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Confidence</span>
-                <span class="stat-value">${stock.confidence_score}%</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Pos Size / ROE</span>
-                <span class="stat-value">${stock.pos_size_pct || 'N/A'} / ${stock.roe || 'N/A'}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="sparkline-container">
-            <div class="sparkline-title">Recent Price Trend</div>
-            ${sparklineSvg}
-          </div>
-        `;
-
-        container.appendChild(card);
-      });
     }
 
-    // SVG Sparkline Generator
-    function generateSparkline(prices) {
-      if (!prices || prices.length < 2) return '';
-
-      const min = Math.min(...prices);
-      const max = Math.max(...prices);
-      const range = (max - min) || 1;
-      const width = 300;
-      const height = 40;
-
-      const points = prices.map((price, idx) => {
-        const x = (idx / (prices.length - 1)) * width;
-        const y = height - ((price - min) / range) * (height - 8) - 4;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(' ');
-
-      const isUp = prices[prices.length - 1] >= prices[0];
-      const strokeColor = isUp ? '#22c55e' : '#ef4444';
-
-      return `
-        <svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-          <polyline points="${points}" style="stroke: ${strokeColor};" />
-        </svg>
-      `;
-    }
-
-    // Run on load with user-friendly catch error
-    document.addEventListener('DOMContentLoaded', () => {
-      loadDashboard().catch(error => {
-        console.error('Error rendering dashboard:', error);
-        document.getElementById('dashboard-container').innerHTML = `
-          <div class="error-box">
-            <h3>Unable to load data.json</h3>
-            <p>${error.message}</p>
-            <br>
-            <strong>Quick Checklist to Fix This:</strong>
-            <ul>
-              <li><strong>GitHub Repository:</strong> Make sure <code>data.json</code> exists in your GitHub repository alongside <code>index.html</code>.</li>
-              <li><strong>GitHub Actions:</strong> Run your workflow once manually in GitHub under the <em>Actions</em> tab to generate the initial <code>data.json</code> file.</li>
-              <li><strong>File Name:</strong> Ensure the file is named in lowercase exact letters: <code>data.json</code> (not <code>Data.json</code>).</li>
-            </ul>
-          </div>
-        `;
-      });
-    });
+    loadStockData();
   </script>
 </body>
 </html>
