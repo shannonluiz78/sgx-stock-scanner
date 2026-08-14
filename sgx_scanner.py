@@ -501,4 +501,323 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .big-chart-container {{ height: 260px; width: 100%; position: relative; }}
 
         /* Input Form Modal */
-        .input-group {{
+        .input-group {{ margin-bottom: 14px; text-align: left; }}
+        .input-group label {{ display: block; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; font-weight: 600; }}
+        .input-group input {{ width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 0.88rem; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>SGX Stock Scanner Dashboard</h1>
+                <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
+            </div>
+            <div style="text-align: right;">
+                <button id="rescanBtn" class="btn-rescan" onclick="openTriggerModal()">🔄 Trigger Rescan</button>
+                <div class="text-muted" style="margin-top:4px;">Updated: {timestamp}</div>
+            </div>
+        </div>
+
+        <div class="section-title">⭐ Top 8 Recommended Opportunities</div>
+        <div class="rec-grid">
+            {rec_cards_html}
+        </div>
+
+        <div class="section-title">📊 Full SGX Stock Universe Scan</div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company & Sector</th>
+                        <th>Price (SGD)</th>
+                        <th>Day Change</th>
+                        <th>Signal</th>
+                        <th>Div Yield</th>
+                        <th>Target Price</th>
+                        <th>Market Cap</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows_html}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="triggerModal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <span class="close-btn" onclick="closeTriggerModal()">&times;</span>
+            <h2 style="margin-top:0; color:#38bdf8;">🔄 Trigger Ad-Hoc Scan</h2>
+            <p class="text-muted" style="margin-bottom:16px;">Enter your GitHub details to start the workflow. Saved locally in browser.</p>
+            
+            <div class="input-group">
+                <label>GitHub Personal Access Token (PAT):</label>
+                <input type="password" id="inputPAT" placeholder="github_pat_11A...">
+            </div>
+            <div class="input-group">
+                <label>GitHub Username / Org:</label>
+                <input type="text" id="inputOwner" placeholder="e.g. john-doe">
+            </div>
+            <div class="input-group">
+                <label>Repository Name:</label>
+                <input type="text" id="inputRepo" placeholder="e.g. sgx-stock-scanner">
+            </div>
+
+            <button onclick="executeScanTrigger()" style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; margin-top:8px;">
+                🚀 Start Scan Now
+            </button>
+        </div>
+    </div>
+
+    <div id="deepDiveModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
+            <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
+            
+            <div class="modal-chart-box">
+                <div class="tf-btn-group">
+                    <button class="tf-btn" onclick="updateModalChart('1M')">1M</button>
+                    <button class="tf-btn" onclick="updateModalChart('3M')">3M</button>
+                    <button class="tf-btn" onclick="updateModalChart('6M')">6M</button>
+                    <button class="tf-btn active" onclick="updateModalChart('1Y')">1Y</button>
+                    <button class="tf-btn" onclick="updateModalChart('3Y')">3Y</button>
+                    <button class="tf-btn" onclick="updateModalChart('5Y')">5Y</button>
+                </div>
+                <div class="big-chart-container">
+                    <canvas id="modalChartCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="modal-grid">
+                <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
+                <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
+                <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
+                <div>PPE / Buildings: <strong id="m-ppe">N/A</strong></div>
+                <div>Target Price: <strong id="m-target">N/A</strong></div>
+                <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
+            </div>
+
+            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financials & Dividend History</h3>
+            <table class="data-table">
+                <thead>
+                    <tr id="m-hist-years"><th>Metric</th></tr>
+                </thead>
+                <tbody>
+                    <tr id="m-hist-rev"><td>Revenue</td></tr>
+                    <tr id="m-hist-net"><td>Net Income</td></tr>
+                    <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
+                    <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
+                    <tr id="m-hist-div"><td>Div / Share (DPS)</td></tr>
+                    <tr id="m-hist-yield"><td>Hist. Div Yield</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const stockData = {json.dumps(json_data)};
+        const recData = {json.dumps([r['data']['ticker'] for r in top_8_recs])};
+        let modalChartInstance = null;
+        let activeModalTicker = null;
+
+        window.onload = function() {{
+            recData.forEach(ticker => {{
+                const item = stockData[ticker];
+                if (item && item.hist_prices && item.hist_prices.length > 0) {{
+                    const canvasId = 'chart-' + ticker.replace('.', '_');
+                    const ctx = document.getElementById(canvasId);
+                    if (ctx) {{
+                        new Chart(ctx, {{
+                            type: 'line',
+                            data: {{
+                                labels: item.hist_labels,
+                                datasets: [{{
+                                    data: item.hist_prices,
+                                    borderColor: '#38bdf8',
+                                    borderWidth: 2,
+                                    fill: false,
+                                    pointRadius: 0
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {{ legend: {{ display: false }} }},
+                                scales: {{ x: {{ display: false }}, y: {{ display: false }} }}
+                            }}
+                        }});
+                    }}
+                }}
+            }});
+        }};
+
+        function openModal(ticker) {{
+            const item = stockData[ticker];
+            if (!item) return;
+
+            activeModalTicker = ticker;
+
+            document.getElementById('m-title').innerText = item.ticker + ' - ' + item.name;
+            document.getElementById('m-subtitle').innerText = item.sector + ' | ' + item.mkt_cap + ' Market Cap';
+            document.getElementById('m-st-debt').innerText = item.short_debt;
+            document.getElementById('m-lt-debt').innerText = item.long_debt;
+            document.getElementById('m-cash').innerText = item.assets_cash;
+            document.getElementById('m-ppe').innerText = item.assets_ppe;
+            document.getElementById('m-target').innerText = item.target_price;
+            document.getElementById('m-moat').innerText = item.moat;
+
+            const yearsHeader = '<th>Metric</th>' + (item.years && item.years.length > 0 ? item.years.map(y => `<th>${{y}}</th>`).join('') : '<th>N/A</th>');
+            document.getElementById('m-hist-years').innerHTML = yearsHeader;
+            
+            document.getElementById('m-hist-rev').innerHTML = '<td>Revenue</td>' + (item.revenue && item.revenue.length > 0 ? item.revenue.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-div').innerHTML = '<td>Div / Share (DPS)</td>' + (item.dividends && item.dividends.length > 0 ? item.dividends.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-yield').innerHTML = '<td>Hist. Div Yield</td>' + (item.hist_div_yield && item.hist_div_yield.length > 0 ? item.hist_div_yield.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+
+            document.getElementById('deepDiveModal').style.display = 'flex';
+            updateModalChart('1Y');
+        }}
+
+        function updateModalChart(timeframe) {{
+            if (!activeModalTicker || !stockData[activeModalTicker]) return;
+
+            const item = stockData[activeModalTicker];
+            const dates = item.daily_dates || [];
+            const prices = item.daily_prices || [];
+
+            if (dates.length === 0 || prices.length === 0) return;
+
+            const buttons = document.querySelectorAll('.tf-btn');
+            buttons.forEach(btn => {{
+                if (btn.innerText === timeframe) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }});
+
+            let count = dates.length;
+            if (timeframe === '1M') count = Math.min(21, dates.length);
+            else if (timeframe === '3M') count = Math.min(63, dates.length);
+            else if (timeframe === '6M') count = Math.min(126, dates.length);
+            else if (timeframe === '1Y') count = Math.min(252, dates.length);
+            else if (timeframe === '3Y') count = Math.min(756, dates.length);
+            else if (timeframe === '5Y') count = dates.length;
+
+            const filteredDates = dates.slice(-count);
+            const filteredPrices = prices.slice(-count);
+
+            const ctx = document.getElementById('modalChartCanvas').getContext('2d');
+
+            if (modalChartInstance) {{
+                modalChartInstance.destroy();
+            }}
+
+            modalChartInstance = new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: filteredDates,
+                    datasets: [{{
+                        label: 'Price (SGD)',
+                        data: filteredPrices,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 1,
+                        tension: 0.1
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{ legend: {{ display: false }} }},
+                    scales: {{
+                        x: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8', maxTicksLimit: 8 }} }},
+                        y: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8' }} }}
+                    }}
+                }}
+            }});
+        }}
+
+        function closeModal() {{
+            document.getElementById('deepDiveModal').style.display = 'none';
+        }}
+
+        /* Rescan Trigger Modal Functions */
+        function openTriggerModal() {{
+            document.getElementById('inputPAT').value = localStorage.getItem("GH_PAT") || "";
+            document.getElementById('inputOwner').value = localStorage.getItem("GH_OWNER") || "";
+            document.getElementById('inputRepo').value = localStorage.getItem("GH_REPO") || "";
+            document.getElementById('triggerModal').style.display = 'flex';
+        }}
+
+        function closeTriggerModal() {{
+            document.getElementById('triggerModal').style.display = 'none';
+        }}
+
+        async function executeScanTrigger() {{
+            const token = document.getElementById('inputPAT').value.trim();
+            const owner = document.getElementById('inputOwner').value.trim();
+            const repo = document.getElementById('inputRepo').value.trim();
+
+            if (!token || !owner || !repo) {{
+                alert("Please fill in all three fields!");
+                return;
+            }}
+
+            localStorage.setItem("GH_PAT", token);
+            localStorage.setItem("GH_OWNER", owner);
+            localStorage.setItem("GH_REPO", repo);
+
+            const btn = document.getElementById("rescanBtn");
+            btn.innerText = "⏳ Triggering...";
+            btn.disabled = true;
+            closeTriggerModal();
+
+            try {{
+                const res = await fetch(`https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
+                    method: "POST",
+                    headers: {{
+                        "Accept": "application/vnd.github+json",
+                        "Authorization": `Bearer ${{token}}`,
+                        "X-GitHub-Api-Version": "2022-11-28"
+                    }},
+                    body: JSON.stringify({{ ref: "main" }})
+                }});
+
+                if (res.status === 204) {{
+                    alert("🚀 Rescan triggered successfully!\n\nThe scanner is now running on GitHub. Results will appear here and on Telegram in ~2 minutes.");
+                }} else {{
+                    const err = await res.text();
+                    alert("⚠️ Trigger failed (Status " + res.status + "): " + err);
+                }}
+            }} catch (err) {{
+                alert("⚠️ Error triggering workflow: " + err.message);
+            }} finally {{
+                btn.innerText = "🔄 Trigger Rescan";
+                btn.disabled = false;
+            }}
+        }}
+    </script>
+</body>
+</html>"""
+
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_doc)
+    print("✅ Dashboard generated successfully: index.html")
+
+def main():
+    print("Starting SGX scanner...")
+    analyzed = analyze_universe_batch(STOCK_UNIVERSE)
+    top_8 = allocate_top_8_buckets(analyzed)
+    render_html_dashboard(analyzed, top_8)
+    
+    # Send Telegram Alerts
+    send_telegram_alert(analyzed)
+
+if __name__ == "__main__":
+    main()
