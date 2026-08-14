@@ -189,9 +189,21 @@
       background-color: rgba(239, 68, 68, 0.1);
       border: 1px solid var(--sell-color);
       color: var(--text-main);
-      padding: 20px;
+      padding: 24px;
       border-radius: 8px;
-      text-align: center;
+      text-align: left;
+    }
+
+    .error-box h3 {
+      color: var(--sell-color);
+      margin-bottom: 8px;
+    }
+
+    .error-box ul {
+      margin-top: 8px;
+      margin-left: 20px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
     }
   </style>
 </head>
@@ -213,102 +225,96 @@
       const container = document.getElementById('dashboard-container');
       const timeElem = document.getElementById('last-updated');
 
-      try {
-        // Fetch data.json relative to current directory
-        const response = await fetch('./data.json');
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: Unable to load data.json`);
+      // Common paths where data.json might live
+      const possiblePaths = ['./data.json', 'data.json', './data/data.json'];
+      let response = null;
+
+      // Try fetching from each possible path with cache-busting timestamp
+      for (const path of possiblePaths) {
+        try {
+          const res = await fetch(`${path}?t=${Date.now()}`);
+          if (res.ok) {
+            response = res;
+            break;
+          }
+        } catch (e) {
+          // keep searching
         }
+      }
 
-        const json = await response.json();
+      if (!response) {
+        throw new Error('data.json was not found in the repository root or data/ subfolder.');
+      }
 
-        // 1. Display Updated Timestamp
-        if (json.updated_at_sgt) {
-          timeElem.textContent = `Updated: ${json.updated_at_sgt}`;
-        } else {
-          timeElem.textContent = 'Updated: N/A';
-        }
+      const json = await response.json();
 
-        // 2. Extract stock list safely (handles wrapper object OR flat array)
-        const stocks = Array.isArray(json) ? json : (json.data || []);
+      // 1. Display Updated Timestamp
+      timeElem.textContent = json.updated_at_sgt ? `Updated: ${json.updated_at_sgt}` : 'Updated: N/A';
 
-        if (!stocks || stocks.length === 0) {
-          container.innerHTML = `<div class="error-box">No stock data found in data.json.</div>`;
-          return;
-        }
+      // 2. Extract stock list safely
+      const stocks = Array.isArray(json) ? json : (json.data || []);
 
-        // 3. Clear container and render stock cards
-        container.innerHTML = '';
+      if (!stocks || stocks.length === 0) {
+        container.innerHTML = `<div class="error-box"><h3>No Stocks Found</h3><p>data.json is empty or formatted incorrectly.</p></div>`;
+        return;
+      }
 
-        stocks.forEach(stock => {
-          const card = document.createElement('div');
-          card.className = 'card';
+      // 3. Clear container and render stock cards
+      container.innerHTML = '';
 
-          const signal = stock.trade_signal || 'WATCH';
-          const sparklineSvg = generateSparkline(stock.daily_prices || []);
+      stocks.forEach(stock => {
+        const card = document.createElement('div');
+        card.className = 'card';
 
-          card.innerHTML = `
-            <div>
-              <div class="card-header">
-                <div>
-                  <div class="ticker">${stock.ticker}</div>
-                  <div class="company-name">${stock.name}</div>
-                </div>
-                <span class="badge badge-${signal}">${signal}</span>
+        const signal = stock.trade_signal || 'WATCH';
+        const sparklineSvg = generateSparkline(stock.daily_prices || []);
+
+        card.innerHTML = `
+          <div>
+            <div class="card-header">
+              <div>
+                <div class="ticker">${stock.ticker}</div>
+                <div class="company-name">${stock.name || stock.ticker}</div>
               </div>
-
-              <div class="price-row">
-                <span class="price">$${Number(stock.price).toFixed(2)}</span>
-                <span class="sector">${stock.sector}</span>
-              </div>
-
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <span class="stat-label">Stop Loss</span>
-                  <span class="stat-value" style="color: var(--sell-color);">$${Number(stock.stop_loss).toFixed(2)}</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Take Profit</span>
-                  <span class="stat-value" style="color: var(--buy-color);">$${Number(stock.take_profit).toFixed(2)}</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Confidence</span>
-                  <span class="stat-value">${stock.confidence_score}%</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Pos Size / ROE</span>
-                  <span class="stat-value">${stock.pos_size_pct || 'N/A'} / ${stock.roe || 'N/A'}</span>
-                </div>
-              </div>
+              <span class="badge badge-${signal}">${signal}</span>
             </div>
 
-            <div class="sparkline-container">
-              <div class="sparkline-title">Recent Price Trend</div>
-              ${sparklineSvg}
+            <div class="price-row">
+              <span class="price">$${Number(stock.price).toFixed(2)}</span>
+              <span class="sector">${stock.sector || 'SGX'}</span>
             </div>
-          `;
 
-          container.appendChild(card);
-        });
+            <div class="stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">Stop Loss</span>
+                <span class="stat-value" style="color: var(--sell-color);">$${Number(stock.stop_loss).toFixed(2)}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Take Profit</span>
+                <span class="stat-value" style="color: var(--buy-color);">$${Number(stock.take_profit).toFixed(2)}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Confidence</span>
+                <span class="stat-value">${stock.confidence_score}%</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Pos Size / ROE</span>
+                <span class="stat-value">${stock.pos_size_pct || 'N/A'} / ${stock.roe || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
 
-      } catch (error) {
-        console.error('Error rendering dashboard:', error);
-        container.innerHTML = `
-          <div class="error-box">
-            <h3>Failed to load dashboard data</h3>
-            <p style="margin-top: 8px; font-size: 0.9rem; color: var(--text-muted);">
-              ${error.message}
-            </p>
-            <p style="margin-top: 12px; font-size: 0.8rem;">
-              <strong>Note:</strong> If running locally on your computer, open this page via a local web server (or VS Code Live Server) rather than double-clicking the HTML file.
-            </p>
+          <div class="sparkline-container">
+            <div class="sparkline-title">Recent Price Trend</div>
+            ${sparklineSvg}
           </div>
         `;
-      }
+
+        container.appendChild(card);
+      });
     }
 
-    // SVG Sparkline Generator function
+    // SVG Sparkline Generator
     function generateSparkline(prices) {
       if (!prices || prices.length < 2) return '';
 
@@ -334,8 +340,25 @@
       `;
     }
 
-    // Run on page load
-    document.addEventListener('DOMContentLoaded', loadDashboard);
+    // Run on load with user-friendly catch error
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDashboard().catch(error => {
+        console.error('Error rendering dashboard:', error);
+        document.getElementById('dashboard-container').innerHTML = `
+          <div class="error-box">
+            <h3>Unable to load data.json</h3>
+            <p>${error.message}</p>
+            <br>
+            <strong>Quick Checklist to Fix This:</strong>
+            <ul>
+              <li><strong>GitHub Repository:</strong> Make sure <code>data.json</code> exists in your GitHub repository alongside <code>index.html</code>.</li>
+              <li><strong>GitHub Actions:</strong> Run your workflow once manually in GitHub under the <em>Actions</em> tab to generate the initial <code>data.json</code> file.</li>
+              <li><strong>File Name:</strong> Ensure the file is named in lowercase exact letters: <code>data.json</code> (not <code>Data.json</code>).</li>
+            </ul>
+          </div>
+        `;
+      });
+    });
   </script>
 </body>
 </html>
