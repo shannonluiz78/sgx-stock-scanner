@@ -1,7 +1,0 @@
-yfinance
-pandas
-requests
-beautifulsoup4
-openpyxl
-lxml
-html5lib
