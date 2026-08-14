@@ -81,12 +81,11 @@ def format_compact(val):
     except: return "N/A"
 
 def send_telegram_alert(all_stocks):
-    """Sends Telegram alerts prioritized by Bullish/Vol Surge signals first, followed by Oversold stocks."""
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
     if not bot_token or not chat_id:
-        print("ℹ️ Telegram credentials missing in environment variables. Skipping alert notification.")
+        print("ℹ️ Telegram credentials missing. Skipping alert.")
         return
 
     priority_stocks = []
@@ -100,7 +99,7 @@ def send_telegram_alert(all_stocks):
             oversold_stocks.append(s)
 
     if not priority_stocks and not oversold_stocks:
-        print("ℹ️ No alert triggers detected in today's scan.")
+        print("ℹ️ No alert triggers detected.")
         return
 
     date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -131,19 +130,13 @@ def send_telegram_alert(all_stocks):
             )
 
     msg_text = "\n".join(msg_lines)
-
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": msg_text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
+    payload = {"chat_id": chat_id, "text": msg_text, "parse_mode": "HTML", "disable_web_page_preview": True}
 
     try:
         res = requests.post(url, json=payload, timeout=10)
         if res.status_code == 200:
-            print(f"✅ Telegram alert sent successfully ({len(priority_stocks) + len(oversold_stocks)} stocks flagged).")
+            print(f"✅ Telegram alert sent successfully.")
         else:
             print(f"⚠️ Failed to send Telegram alert: {res.text}")
     except Exception as e:
@@ -159,7 +152,7 @@ def get_statement_row(df, possible_names):
 
 def analyze_universe_batch(stock_universe):
     tickers = [item["ticker"] for item in stock_universe]
-    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers in 1 batch request...")
+    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers...")
 
     try:
         batch_df = yf.download(tickers, period="5y", group_by="ticker", threads=True, progress=False, session=session)
@@ -244,15 +237,11 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
 
-        # Metadata & Fundamentals Parsing
         try:
-            time.sleep(0.3)
+            time.sleep(0.2)
             ticker_obj = yf.Ticker(symbol, session=session)
+            info = ticker_obj.info or {}
             
-            info = {}
-            try: info = ticker_obj.info or {}
-            except Exception: pass
-
             data["mkt_cap_raw"] = info.get("marketCap", 0) or 0
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
             data["pe_ratio"] = round(info.get("trailingPE"), 2) if info.get("trailingPE") else "N/A"
@@ -274,7 +263,6 @@ def analyze_universe_batch(stock_universe):
             elif data["mkt_cap_raw"] > 2e9: data["moat"] = "NARROW MOAT"
             else: data["moat"] = "MODERATE MOAT"
 
-            # Financial Statements (5-Year Rolling Data)
             try:
                 fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
@@ -286,7 +274,6 @@ def analyze_universe_batch(stock_universe):
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
             except Exception: pass
 
-            # Cash Flow (Operating & Free Cash Flow)
             try:
                 cf = ticker_obj.cashflow
                 if cf is not None and not cf.empty:
@@ -302,7 +289,6 @@ def analyze_universe_batch(stock_universe):
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
             except Exception: pass
 
-            # 5-Year Dividend Per Share (DPS) & Historical Dividend Yield (%) Calculation
             try:
                 divs = ticker_obj.dividends
                 if divs is not None and not divs.empty:
@@ -310,9 +296,7 @@ def analyze_universe_batch(stock_universe):
                         divs.index = divs.index.tz_localize(None)
                     
                     yearly_dps = divs.groupby(divs.index.year).sum()
-                    
-                    dps_list = []
-                    yield_list = []
+                    dps_list, yield_list = [], []
                     
                     for yr in data["years"]:
                         try:
@@ -320,18 +304,14 @@ def analyze_universe_batch(stock_universe):
                             if yr_int in yearly_dps.index:
                                 val = float(yearly_dps.loc[yr_int])
                                 dps_list.append(f"${val:.3f}")
-                                
-                                # Compute yield based on year-end close price
                                 if hist is not None and not hist.empty:
                                     yr_hist = hist[hist.index.year == yr_int]
                                     if not yr_hist.empty:
                                         yr_close = float(yr_hist["Close"].iloc[-1])
-                                        yr_yield = (val / (yr_close + 1e-9)) * 100
-                                        yield_list.append(f"{yr_yield:.2f}%")
-                                    else:
-                                        yield_list.append("N/A")
-                                else:
-                                    yield_list.append("N/A")
+                                        dps_yield = (val / (yr_close + 1e-9)) * 100
+                                        yield_list.append(f"{dps_yield:.2f}%")
+                                    else: yield_list.append("N/A")
+                                else: yield_list.append("N/A")
                             else:
                                 dps_list.append("$0.000")
                                 yield_list.append("0.00%")
@@ -344,8 +324,7 @@ def analyze_universe_batch(stock_universe):
                 else:
                     data["dividends"] = ["$0.000"] * len(data["years"])
                     data["hist_div_yield"] = ["0.00%"] * len(data["years"])
-            except Exception as e:
-                print(f"⚠️ Note: Dividend calculation failed for {symbol}: {e}")
+            except Exception: pass
 
             try:
                 bs = ticker_obj.balance_sheet
@@ -364,7 +343,7 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
 
-        # Scoring Logic
+        # Scores
         if is_anchor or data["mkt_cap_raw"] > 8e9:
             data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
 
@@ -392,8 +371,7 @@ def allocate_top_8_buckets(stock_data_list):
             reverse=True
         )
         picked = sorted_stocks[:limit]
-        for p in picked:
-            selected_tickers.add(p["ticker"])
+        for p in picked: selected_tickers.add(p["ticker"])
         return picked
 
     b1 = get_top_candidates("anchor", 2)
@@ -446,12 +424,9 @@ def render_html_dashboard(all_stocks, top_8_recs):
         chg = stk["change"]
         p_chg = stk["p_change"]
         
-        if chg > 0:
-            badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
-        elif chg < 0:
-            badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
-        else:
-            badge = '<span class="badge neu">$0.00 (0.00%)</span>'
+        if chg > 0: badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
+        elif chg < 0: badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
+        else: badge = '<span class="badge neu">$0.00 (0.00%)</span>'
 
         table_rows_html += f"""
         <tr onclick="openModal('{stk['ticker']}')" style="cursor: pointer;">
@@ -509,21 +484,26 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .neu {{ background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }}
         .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
         .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
-        .btn-rescan {{ background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.82rem; margin-bottom: 6px; transition: background 0.2s; }}
-        .btn-rescan:hover {{ background: #0369a1; }}
+        .btn-rescan {{ background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; position: relative; z-index: 10; }}
+        .btn-rescan:hover {{ background: #0369a1; transform: scale(1.02); }}
         
+        /* Modal Styles */
         .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
         .modal-content {{ background: #1e293b; max-width: 900px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
         .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
         .modal-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; background: #0f172a; padding: 16px; border-radius: 8px; }}
         .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
         .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
-        
         .modal-chart-box {{ background: #0f172a; padding: 16px; border-radius: 8px; margin: 16px 0; }}
         .tf-btn-group {{ display: flex; gap: 8px; margin-bottom: 12px; justify-content: flex-end; }}
-        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }}
+        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; }}
         .tf-btn.active, .tf-btn:hover {{ background: #0284c7; color: white; }}
         .big-chart-container {{ height: 260px; width: 100%; position: relative; }}
+
+        /* Input Form Modal */
+        .input-group {{ margin-bottom: 14px; text-align: left; }}
+        .input-group label {{ display: block; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; font-weight: 600; }}
+        .input-group input {{ width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 0.88rem; }}
     </style>
 </head>
 <body>
@@ -534,8 +514,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
             </div>
             <div style="text-align: right;">
-                <button id="rescanBtn" class="btn-rescan" onclick="triggerRescan()">🔄 Trigger Rescan</button>
-                <div class="text-muted">Updated: {timestamp}</div>
+                <button id="rescanBtn" class="btn-rescan" onclick="openTriggerModal()">🔄 Trigger Rescan</button>
+                <div class="text-muted" style="margin-top:4px;">Updated: {timestamp}</div>
             </div>
         </div>
 
@@ -564,6 +544,31 @@ def render_html_dashboard(all_stocks, top_8_recs):
                     {table_rows_html}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div id="triggerModal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <span class="close-btn" onclick="closeTriggerModal()">&times;</span>
+            <h2 style="margin-top:0; color:#38bdf8;">🔄 Trigger Ad-Hoc Scan</h2>
+            <p class="text-muted" style="margin-bottom:16px;">Enter your GitHub details to start the workflow. Saved locally in browser.</p>
+            
+            <div class="input-group">
+                <label>GitHub Personal Access Token (PAT):</label>
+                <input type="password" id="inputPAT" placeholder="github_pat_11A...">
+            </div>
+            <div class="input-group">
+                <label>GitHub Username / Org:</label>
+                <input type="text" id="inputOwner" placeholder="e.g. john-doe">
+            </div>
+            <div class="input-group">
+                <label>Repository Name:</label>
+                <input type="text" id="inputRepo" placeholder="e.g. sgx-stock-scanner">
+            </div>
+
+            <button onclick="executeScanTrigger()" style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; margin-top:8px;">
+                🚀 Start Scan Now
+            </button>
         </div>
     </div>
 
@@ -742,32 +747,36 @@ def render_html_dashboard(all_stocks, top_8_recs):
             document.getElementById('deepDiveModal').style.display = 'none';
         }}
 
-        async function triggerRescan() {{
-            let token = localStorage.getItem("GH_PAT");
-            if (!token) {{
-                token = prompt("Enter your GitHub Fine-Grained Personal Access Token:");
-                if (token) localStorage.setItem("GH_PAT", token.trim());
-                else return;
+        /* Rescan Trigger Modal Functions */
+        function openTriggerModal() {{
+            document.getElementById('inputPAT').value = localStorage.getItem("GH_PAT") || "";
+            document.getElementById('inputOwner').value = localStorage.getItem("GH_OWNER") || "";
+            document.getElementById('inputRepo').value = localStorage.getItem("GH_REPO") || "";
+            document.getElementById('triggerModal').style.display = 'flex';
+        }}
+
+        function closeTriggerModal() {{
+            document.getElementById('triggerModal').style.display = 'none';
+        }}
+
+        async function executeScanTrigger() {{
+            const token = document.getElementById('inputPAT').value.trim();
+            const owner = document.getElementById('inputOwner').value.trim();
+            const repo = document.getElementById('inputRepo').value.trim();
+
+            if (!token || !owner || !repo) {{
+                alert("Please fill in all three fields!");
+                return;
             }}
 
-            let owner = localStorage.getItem("GH_OWNER");
-            if (!owner) {{
-                owner = prompt("Enter your GitHub Username or Organization:");
-                if (owner) localStorage.setItem("GH_OWNER", owner.trim());
-                else return;
-            }}
-
-            let repo = localStorage.getItem("GH_REPO");
-            if (!repo) {{
-                repo = prompt("Enter your GitHub Repository Name (e.g., sgx-stock-scanner):");
-                if (repo) localStorage.setItem("GH_REPO", repo.trim());
-                else return;
-            }}
+            localStorage.setItem("GH_PAT", token);
+            localStorage.setItem("GH_OWNER", owner);
+            localStorage.setItem("GH_REPO", repo);
 
             const btn = document.getElementById("rescanBtn");
-            const originalText = btn.innerText;
             btn.innerText = "⏳ Triggering...";
             btn.disabled = true;
+            closeTriggerModal();
 
             try {{
                 const res = await fetch(`https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
@@ -781,18 +790,15 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 }});
 
                 if (res.status === 204) {{
-                    alert("🚀 Rescan triggered successfully!\n\nThe workflow is running on GitHub. Your dashboard will refresh automatically and send Telegram alerts in ~2 minutes.");
+                    alert("🚀 Rescan triggered successfully!\n\nThe scanner is now running on GitHub. Results will appear here and on Telegram in ~2 minutes.");
                 }} else {{
                     const err = await res.text();
-                    alert("⚠️ Trigger failed (Status " + res.status + "): " + err + "\n\nResetting credentials.");
-                    localStorage.removeItem("GH_PAT");
-                    localStorage.removeItem("GH_OWNER");
-                    localStorage.removeItem("GH_REPO");
+                    alert("⚠️ Trigger failed (Status " + res.status + "): " + err);
                 }}
             }} catch (err) {{
                 alert("⚠️ Error triggering workflow: " + err.message);
             }} finally {{
-                btn.innerText = originalText;
+                btn.innerText = "🔄 Trigger Rescan";
                 btn.disabled = false;
             }}
         }}
