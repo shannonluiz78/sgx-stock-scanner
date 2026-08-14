@@ -81,12 +81,11 @@ def format_compact(val):
     except: return "N/A"
 
 def send_telegram_alert(all_stocks):
-    """Sends Telegram alerts prioritized by Bullish/Vol Surge signals first, followed by Oversold stocks."""
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
     if not bot_token or not chat_id:
-        print("ℹ️ Telegram credentials missing in environment variables. Skipping alert notification.")
+        print("ℹ️ Telegram credentials missing. Skipping alert.")
         return
 
     priority_stocks = []
@@ -100,7 +99,7 @@ def send_telegram_alert(all_stocks):
             oversold_stocks.append(s)
 
     if not priority_stocks and not oversold_stocks:
-        print("ℹ️ No alert triggers detected in today's scan.")
+        print("ℹ️ No alert triggers detected.")
         return
 
     date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -131,19 +130,13 @@ def send_telegram_alert(all_stocks):
             )
 
     msg_text = "\n".join(msg_lines)
-
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": msg_text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
+    payload = {"chat_id": chat_id, "text": msg_text, "parse_mode": "HTML", "disable_web_page_preview": True}
 
     try:
         res = requests.post(url, json=payload, timeout=10)
         if res.status_code == 200:
-            print(f"✅ Telegram alert sent successfully ({len(priority_stocks) + len(oversold_stocks)} stocks flagged).")
+            print(f"✅ Telegram alert sent successfully.")
         else:
             print(f"⚠️ Failed to send Telegram alert: {res.text}")
     except Exception as e:
@@ -159,7 +152,7 @@ def get_statement_row(df, possible_names):
 
 def analyze_universe_batch(stock_universe):
     tickers = [item["ticker"] for item in stock_universe]
-    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers in 1 batch request...")
+    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers...")
 
     try:
         batch_df = yf.download(tickers, period="5y", group_by="ticker", threads=True, progress=False, session=session)
@@ -244,15 +237,11 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
 
-        # Metadata & Fundamentals Parsing
         try:
-            time.sleep(0.3)
+            time.sleep(0.2)
             ticker_obj = yf.Ticker(symbol, session=session)
+            info = ticker_obj.info or {}
             
-            info = {}
-            try: info = ticker_obj.info or {}
-            except Exception: pass
-
             data["mkt_cap_raw"] = info.get("marketCap", 0) or 0
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
             data["pe_ratio"] = round(info.get("trailingPE"), 2) if info.get("trailingPE") else "N/A"
@@ -274,7 +263,6 @@ def analyze_universe_batch(stock_universe):
             elif data["mkt_cap_raw"] > 2e9: data["moat"] = "NARROW MOAT"
             else: data["moat"] = "MODERATE MOAT"
 
-            # Financial Statements (5-Year Rolling Data)
             try:
                 fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
@@ -286,7 +274,6 @@ def analyze_universe_batch(stock_universe):
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
             except Exception: pass
 
-            # Cash Flow (Operating & Free Cash Flow)
             try:
                 cf = ticker_obj.cashflow
                 if cf is not None and not cf.empty:
@@ -302,7 +289,6 @@ def analyze_universe_batch(stock_universe):
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
             except Exception: pass
 
-            # 5-Year Dividend Per Share (DPS) & Historical Dividend Yield (%) Calculation
             try:
                 divs = ticker_obj.dividends
                 if divs is not None and not divs.empty:
@@ -310,9 +296,7 @@ def analyze_universe_batch(stock_universe):
                         divs.index = divs.index.tz_localize(None)
                     
                     yearly_dps = divs.groupby(divs.index.year).sum()
-                    
-                    dps_list = []
-                    yield_list = []
+                    dps_list, yield_list = [], []
                     
                     for yr in data["years"]:
                         try:
@@ -320,18 +304,14 @@ def analyze_universe_batch(stock_universe):
                             if yr_int in yearly_dps.index:
                                 val = float(yearly_dps.loc[yr_int])
                                 dps_list.append(f"${val:.3f}")
-                                
-                                # Compute yield based on year-end close price
                                 if hist is not None and not hist.empty:
                                     yr_hist = hist[hist.index.year == yr_int]
                                     if not yr_hist.empty:
                                         yr_close = float(yr_hist["Close"].iloc[-1])
-                                        yr_yield = (val / (yr_close + 1e-9)) * 100
-                                        yield_list.append(f"{yr_yield:.2f}%")
-                                    else:
-                                        yield_list.append("N/A")
-                                else:
-                                    yield_list.append("N/A")
+                                        dps_yield = (val / (yr_close + 1e-9)) * 100
+                                        yield_list.append(f"{dps_yield:.2f}%")
+                                    else: yield_list.append("N/A")
+                                else: yield_list.append("N/A")
                             else:
                                 dps_list.append("$0.000")
                                 yield_list.append("0.00%")
@@ -344,8 +324,7 @@ def analyze_universe_batch(stock_universe):
                 else:
                     data["dividends"] = ["$0.000"] * len(data["years"])
                     data["hist_div_yield"] = ["0.00%"] * len(data["years"])
-            except Exception as e:
-                print(f"⚠️ Note: Dividend calculation failed for {symbol}: {e}")
+            except Exception: pass
 
             try:
                 bs = ticker_obj.balance_sheet
@@ -364,7 +343,7 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
 
-        # Scoring Logic
+        # Scores
         if is_anchor or data["mkt_cap_raw"] > 8e9:
             data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
 
@@ -392,8 +371,7 @@ def allocate_top_8_buckets(stock_data_list):
             reverse=True
         )
         picked = sorted_stocks[:limit]
-        for p in picked:
-            selected_tickers.add(p["ticker"])
+        for p in picked: selected_tickers.add(p["ticker"])
         return picked
 
     b1 = get_top_candidates("anchor", 2)
@@ -446,12 +424,9 @@ def render_html_dashboard(all_stocks, top_8_recs):
         chg = stk["change"]
         p_chg = stk["p_change"]
         
-        if chg > 0:
-            badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
-        elif chg < 0:
-            badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
-        else:
-            badge = '<span class="badge neu">$0.00 (0.00%)</span>'
+        if chg > 0: badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
+        elif chg < 0: badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
+        else: badge = '<span class="badge neu">$0.00 (0.00%)</span>'
 
         table_rows_html += f"""
         <tr onclick="openModal('{stk['ticker']}')" style="cursor: pointer;">
@@ -509,309 +484,21 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .neu {{ background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }}
         .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
         .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
-        .btn-rescan {{ background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.82rem; margin-bottom: 6px; transition: background 0.2s; }}
-        .btn-rescan:hover {{ background: #0369a1; }}
+        .btn-rescan {{ background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; position: relative; z-index: 10; }}
+        .btn-rescan:hover {{ background: #0369a1; transform: scale(1.02); }}
         
+        /* Modal Styles */
         .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
         .modal-content {{ background: #1e293b; max-width: 900px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
         .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
         .modal-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; background: #0f172a; padding: 16px; border-radius: 8px; }}
         .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
         .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
-        
         .modal-chart-box {{ background: #0f172a; padding: 16px; border-radius: 8px; margin: 16px 0; }}
         .tf-btn-group {{ display: flex; gap: 8px; margin-bottom: 12px; justify-content: flex-end; }}
-        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }}
+        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; }}
         .tf-btn.active, .tf-btn:hover {{ background: #0284c7; color: white; }}
         .big-chart-container {{ height: 260px; width: 100%; position: relative; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div>
-                <h1>SGX Stock Scanner Dashboard</h1>
-                <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
-            </div>
-            <div style="text-align: right;">
-                <button id="rescanBtn" class="btn-rescan" onclick="triggerRescan()">🔄 Trigger Rescan</button>
-                <div class="text-muted">Updated: {timestamp}</div>
-            </div>
-        </div>
 
-        <div class="section-title">⭐ Top 8 Recommended Opportunities</div>
-        <div class="rec-grid">
-            {rec_cards_html}
-        </div>
-
-        <div class="section-title">📊 Full SGX Stock Universe Scan</div>
-        <div class="table-card">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ticker</th>
-                        <th>Company & Sector</th>
-                        <th>Price (SGD)</th>
-                        <th>Day Change</th>
-                        <th>Signal</th>
-                        <th>Div Yield</th>
-                        <th>Target Price</th>
-                        <th>Market Cap</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_rows_html}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="deepDiveModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">&times;</span>
-            <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
-            <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
-            
-            <div class="modal-chart-box">
-                <div class="tf-btn-group">
-                    <button class="tf-btn" onclick="updateModalChart('1M')">1M</button>
-                    <button class="tf-btn" onclick="updateModalChart('3M')">3M</button>
-                    <button class="tf-btn" onclick="updateModalChart('6M')">6M</button>
-                    <button class="tf-btn active" onclick="updateModalChart('1Y')">1Y</button>
-                    <button class="tf-btn" onclick="updateModalChart('3Y')">3Y</button>
-                    <button class="tf-btn" onclick="updateModalChart('5Y')">5Y</button>
-                </div>
-                <div class="big-chart-container">
-                    <canvas id="modalChartCanvas"></canvas>
-                </div>
-            </div>
-
-            <div class="modal-grid">
-                <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
-                <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
-                <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
-                <div>PPE / Buildings: <strong id="m-ppe">N/A</strong></div>
-                <div>Target Price: <strong id="m-target">N/A</strong></div>
-                <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
-            </div>
-
-            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financials & Dividend History</h3>
-            <table class="data-table">
-                <thead>
-                    <tr id="m-hist-years"><th>Metric</th></tr>
-                </thead>
-                <tbody>
-                    <tr id="m-hist-rev"><td>Revenue</td></tr>
-                    <tr id="m-hist-net"><td>Net Income</td></tr>
-                    <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
-                    <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
-                    <tr id="m-hist-div"><td>Div / Share (DPS)</td></tr>
-                    <tr id="m-hist-yield"><td>Hist. Div Yield</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
-        const stockData = {json.dumps(json_data)};
-        const recData = {json.dumps([r['data']['ticker'] for r in top_8_recs])};
-        let modalChartInstance = null;
-        let activeModalTicker = null;
-
-        window.onload = function() {{
-            recData.forEach(ticker => {{
-                const item = stockData[ticker];
-                if (item && item.hist_prices && item.hist_prices.length > 0) {{
-                    const canvasId = 'chart-' + ticker.replace('.', '_');
-                    const ctx = document.getElementById(canvasId);
-                    if (ctx) {{
-                        new Chart(ctx, {{
-                            type: 'line',
-                            data: {{
-                                labels: item.hist_labels,
-                                datasets: [{{
-                                    data: item.hist_prices,
-                                    borderColor: '#38bdf8',
-                                    borderWidth: 2,
-                                    fill: false,
-                                    pointRadius: 0
-                                }}]
-                            }},
-                            options: {{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {{ legend: {{ display: false }} }},
-                                scales: {{ x: {{ display: false }}, y: {{ display: false }} }}
-                            }}
-                        }});
-                    }}
-                }}
-            }});
-        }};
-
-        function openModal(ticker) {{
-            const item = stockData[ticker];
-            if (!item) return;
-
-            activeModalTicker = ticker;
-
-            document.getElementById('m-title').innerText = item.ticker + ' - ' + item.name;
-            document.getElementById('m-subtitle').innerText = item.sector + ' | ' + item.mkt_cap + ' Market Cap';
-            document.getElementById('m-st-debt').innerText = item.short_debt;
-            document.getElementById('m-lt-debt').innerText = item.long_debt;
-            document.getElementById('m-cash').innerText = item.assets_cash;
-            document.getElementById('m-ppe').innerText = item.assets_ppe;
-            document.getElementById('m-target').innerText = item.target_price;
-            document.getElementById('m-moat').innerText = item.moat;
-
-            const yearsHeader = '<th>Metric</th>' + (item.years && item.years.length > 0 ? item.years.map(y => `<th>${{y}}</th>`).join('') : '<th>N/A</th>');
-            document.getElementById('m-hist-years').innerHTML = yearsHeader;
-            
-            document.getElementById('m-hist-rev').innerHTML = '<td>Revenue</td>' + (item.revenue && item.revenue.length > 0 ? item.revenue.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-            document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-            document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-            document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-            document.getElementById('m-hist-div').innerHTML = '<td>Div / Share (DPS)</td>' + (item.dividends && item.dividends.length > 0 ? item.dividends.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-            document.getElementById('m-hist-yield').innerHTML = '<td>Hist. Div Yield</td>' + (item.hist_div_yield && item.hist_div_yield.length > 0 ? item.hist_div_yield.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
-
-            document.getElementById('deepDiveModal').style.display = 'flex';
-            updateModalChart('1Y');
-        }}
-
-        function updateModalChart(timeframe) {{
-            if (!activeModalTicker || !stockData[activeModalTicker]) return;
-
-            const item = stockData[activeModalTicker];
-            const dates = item.daily_dates || [];
-            const prices = item.daily_prices || [];
-
-            if (dates.length === 0 || prices.length === 0) return;
-
-            const buttons = document.querySelectorAll('.tf-btn');
-            buttons.forEach(btn => {{
-                if (btn.innerText === timeframe) btn.classList.add('active');
-                else btn.classList.remove('active');
-            }});
-
-            let count = dates.length;
-            if (timeframe === '1M') count = Math.min(21, dates.length);
-            else if (timeframe === '3M') count = Math.min(63, dates.length);
-            else if (timeframe === '6M') count = Math.min(126, dates.length);
-            else if (timeframe === '1Y') count = Math.min(252, dates.length);
-            else if (timeframe === '3Y') count = Math.min(756, dates.length);
-            else if (timeframe === '5Y') count = dates.length;
-
-            const filteredDates = dates.slice(-count);
-            const filteredPrices = prices.slice(-count);
-
-            const ctx = document.getElementById('modalChartCanvas').getContext('2d');
-
-            if (modalChartInstance) {{
-                modalChartInstance.destroy();
-            }}
-
-            modalChartInstance = new Chart(ctx, {{
-                type: 'line',
-                data: {{
-                    labels: filteredDates,
-                    datasets: [{{
-                        label: 'Price (SGD)',
-                        data: filteredPrices,
-                        borderColor: '#38bdf8',
-                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        pointRadius: 1,
-                        tension: 0.1
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {{ legend: {{ display: false }} }},
-                    scales: {{
-                        x: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8', maxTicksLimit: 8 }} }},
-                        y: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8' }} }}
-                    }}
-                }}
-            }});
-        }}
-
-        function closeModal() {{
-            document.getElementById('deepDiveModal').style.display = 'none';
-        }}
-
-        async function triggerRescan() {{
-            let token = localStorage.getItem("GH_PAT");
-            if (!token) {{
-                token = prompt("Enter your GitHub Fine-Grained Personal Access Token:");
-                if (token) localStorage.setItem("GH_PAT", token.trim());
-                else return;
-            }}
-
-            let owner = localStorage.getItem("GH_OWNER");
-            if (!owner) {{
-                owner = prompt("Enter your GitHub Username or Organization:");
-                if (owner) localStorage.setItem("GH_OWNER", owner.trim());
-                else return;
-            }}
-
-            let repo = localStorage.getItem("GH_REPO");
-            if (!repo) {{
-                repo = prompt("Enter your GitHub Repository Name (e.g., sgx-stock-scanner):");
-                if (repo) localStorage.setItem("GH_REPO", repo.trim());
-                else return;
-            }}
-
-            const btn = document.getElementById("rescanBtn");
-            const originalText = btn.innerText;
-            btn.innerText = "⏳ Triggering...";
-            btn.disabled = true;
-
-            try {{
-                const res = await fetch(`https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
-                    method: "POST",
-                    headers: {{
-                        "Accept": "application/vnd.github+json",
-                        "Authorization": `Bearer ${{token}}`,
-                        "X-GitHub-Api-Version": "2022-11-28"
-                    }},
-                    body: JSON.stringify({{ ref: "main" }})
-                }});
-
-                if (res.status === 204) {{
-                    alert("🚀 Rescan triggered successfully!\n\nThe workflow is running on GitHub. Your dashboard will refresh automatically and send Telegram alerts in ~2 minutes.");
-                }} else {{
-                    const err = await res.text();
-                    alert("⚠️ Trigger failed (Status " + res.status + "): " + err + "\n\nResetting credentials.");
-                    localStorage.removeItem("GH_PAT");
-                    localStorage.removeItem("GH_OWNER");
-                    localStorage.removeItem("GH_REPO");
-                }}
-            }} catch (err) {{
-                alert("⚠️ Error triggering workflow: " + err.message);
-            }} finally {{
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }}
-        }}
-    </script>
-</body>
-</html>"""
-
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html_doc)
-    print("✅ Dashboard generated successfully: index.html")
-
-def main():
-    print("Starting SGX scanner...")
-    analyzed = analyze_universe_batch(STOCK_UNIVERSE)
-    top_8 = allocate_top_8_buckets(analyzed)
-    render_html_dashboard(analyzed, top_8)
-    
-    # Send Telegram Alerts
-    send_telegram_alert(analyzed)
-
-if __name__ == "__main__":
-    main()
+        /* Input Form Modal */
+        .input-group {{
