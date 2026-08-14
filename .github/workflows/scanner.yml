@@ -2,16 +2,16 @@ name: Run Stock Scanner
 
 on:
   schedule:
-    - cron: '0 1 * * 1-5'  # Automatically runs on weekdays at 1:00 AM UTC
-  workflow_dispatch:        # Enables the manual 'Run workflow' button
+    - cron: '0 1 * * 1-5'
+  workflow_dispatch:
 
 jobs:
   scan-stocks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15     # Kills job if stuck longer than 15 mins
+    timeout-minutes: 15
 
     permissions:
-      contents: write       # Grants permission to save data.json back to repo
+      contents: write
 
     steps:
       - name: Checkout Repository
