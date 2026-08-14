@@ -68,11 +68,7 @@ def format_pct(val):
     if val is None or pd.isna(val) or val == "N/A": return "N/A"
     try:
         num = float(val)
-        # Decimal yield ratios (e.g. 0.054 -> 5.40%, 0.0084 -> 0.84%)
-        if abs(num) <= 0.20:
-            return f"{num * 100:.2f}%"
-        else:
-            return f"{num:.2f}%"
+        return f"{num * 100:.2f}%" if abs(num) < 1.0 else f"{num:.2f}%"
     except: return "N/A"
 
 def format_compact(val):
@@ -83,68 +79,6 @@ def format_compact(val):
         if abs(num) >= 1e6: return f"${num/1e6:.2f}M"
         return f"${num:,.0f}"
     except: return "N/A"
-
-def get_clean_dividend_yield(ticker_obj, symbol, last_close, info):
-    """
-    Computes and cleans dividend yield as a standardized decimal ratio (e.g. 0.052 for 5.2%).
-    Handles Yahoo Finance anomalies including FX mismatches (PHP vs SGD for EMI.SI),
-    units mismatches (cents vs dollars), and pre-scaled percentage bugs.
-    """
-    calc_yield = 0.0
-    try:
-        divs = ticker_obj.dividends
-        if divs is not None and not divs.empty:
-            divs_clean = divs.copy()
-            if hasattr(divs_clean.index, 'tz') and divs_clean.index.tz is not None:
-                divs_clean.index = divs_clean.index.tz_localize(None)
-            
-            cutoff = datetime.datetime.now() - datetime.timedelta(days=365)
-            ttm_divs = divs_clean[divs_clean.index >= cutoff]
-            if not ttm_divs.empty:
-                ttm_sum = float(ttm_divs.sum())
-                if isinstance(last_close, (int, float)) and last_close > 0:
-                    calc_yield = ttm_sum / last_close
-    except Exception:
-        pass
-
-    info_yield = 0.0
-    raw_yield = info.get("dividendYield")
-    raw_rate = info.get("dividendRate")
-
-    if raw_yield is not None and not pd.isna(raw_yield):
-        try:
-            val = float(raw_yield)
-            info_yield = val / 100.0 if val > 1.0 else val
-        except Exception:
-            pass
-    elif raw_rate is not None and not pd.isna(raw_rate) and isinstance(last_close, (int, float)) and last_close > 0:
-        try:
-            info_yield = float(raw_rate) / last_close
-        except Exception:
-            pass
-
-    # Secondary listing FX adjustment: Emperador (EMI.SI) dividends reported in PHP (~0.38 PHP) vs price in SGD (~0.45 SGD)
-    if symbol == "EMI.SI":
-        if calc_yield > 0.20:
-            calc_yield /= 43.0  # PHP/SGD exchange rate
-        if info_yield > 0.20:
-            info_yield /= 43.0
-
-    # General 100x scale / cents fixes (e.g. Nanofilm MZH.SI or pre-scaled yield values)
-    if calc_yield > 0.20:
-        calc_yield /= 100.0
-    if info_yield > 0.20:
-        info_yield /= 100.0
-
-    if 0.0 < calc_yield <= 0.20:
-        return calc_yield
-    if 0.0 < info_yield <= 0.20:
-        return info_yield
-
-    final_val = calc_yield if calc_yield > 0 else info_yield
-    while final_val > 0.20:
-        final_val /= 10.0
-    return final_val
 
 def send_telegram_alert(all_stocks):
     """Sends Telegram alerts prioritized by Bullish/Vol Surge signals first, followed by Oversold stocks."""
@@ -323,9 +257,7 @@ def analyze_universe_batch(stock_universe):
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
             data["pe_ratio"] = round(info.get("trailingPE"), 2) if info.get("trailingPE") else "N/A"
             data["pb_ratio"] = round(info.get("priceToBook"), 2) if info.get("priceToBook") else "N/A"
-            
-            # Sanitized dividend yield calculation
-            data["div_yield"] = get_clean_dividend_yield(ticker_obj, symbol, data["price"], info)
+            data["div_yield"] = float(info.get("dividendYield", 0) or 0)
 
             eps = info.get("trailingEps")
             if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
@@ -387,28 +319,18 @@ def analyze_universe_batch(stock_universe):
                             yr_int = int(yr)
                             if yr_int in yearly_dps.index:
                                 val = float(yearly_dps.loc[yr_int])
+                                dps_list.append(f"${val:.3f}")
                                 
                                 # Compute yield based on year-end close price
                                 if hist is not None and not hist.empty:
                                     yr_hist = hist[hist.index.year == yr_int]
                                     if not yr_hist.empty:
                                         yr_close = float(yr_hist["Close"].iloc[-1])
-                                        raw_ratio = val / (yr_close + 1e-9)
-                                        
-                                        val_corrected = val
-                                        if symbol == "EMI.SI" and raw_ratio > 0.20:
-                                            val_corrected = val / 43.0  # PHP to SGD FX fix
-                                        elif raw_ratio > 0.20:
-                                            val_corrected = val / 100.0 # Cents to dollars / 100x scale fix
-                                            
-                                        dps_list.append(f"${val_corrected:.3f}")
-                                        yr_yield = (val_corrected / (yr_close + 1e-9)) * 100
+                                        yr_yield = (val / (yr_close + 1e-9)) * 100
                                         yield_list.append(f"{yr_yield:.2f}%")
                                     else:
-                                        dps_list.append(f"${val:.3f}")
                                         yield_list.append("N/A")
                                 else:
-                                    dps_list.append(f"${val:.3f}")
                                     yield_list.append("N/A")
                             else:
                                 dps_list.append("$0.000")
@@ -587,6 +509,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .neu {{ background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }}
         .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
         .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
+        .btn-rescan {{ background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.82rem; margin-bottom: 6px; transition: background 0.2s; }}
+        .btn-rescan:hover {{ background: #0369a1; }}
         
         .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
         .modal-content {{ background: #1e293b; max-width: 900px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
@@ -609,7 +533,10 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 <h1>SGX Stock Scanner Dashboard</h1>
                 <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
             </div>
-            <div class="text-muted">Updated: {timestamp}</div>
+            <div style="text-align: right;">
+                <button id="rescanBtn" class="btn-rescan" onclick="triggerRescan()">🔄 Trigger Rescan</button>
+                <div class="text-muted">Updated: {timestamp}</div>
+            </div>
         </div>
 
         <div class="section-title">⭐ Top 8 Recommended Opportunities</div>
@@ -813,6 +740,61 @@ def render_html_dashboard(all_stocks, top_8_recs):
 
         function closeModal() {{
             document.getElementById('deepDiveModal').style.display = 'none';
+        }}
+
+        async function triggerRescan() {{
+            let token = localStorage.getItem("GH_PAT");
+            if (!token) {{
+                token = prompt("Enter your GitHub Fine-Grained Personal Access Token:");
+                if (token) localStorage.setItem("GH_PAT", token.trim());
+                else return;
+            }}
+
+            let owner = localStorage.getItem("GH_OWNER");
+            if (!owner) {{
+                owner = prompt("Enter your GitHub Username or Organization:");
+                if (owner) localStorage.setItem("GH_OWNER", owner.trim());
+                else return;
+            }}
+
+            let repo = localStorage.getItem("GH_REPO");
+            if (!repo) {{
+                repo = prompt("Enter your GitHub Repository Name (e.g., sgx-stock-scanner):");
+                if (repo) localStorage.setItem("GH_REPO", repo.trim());
+                else return;
+            }}
+
+            const btn = document.getElementById("rescanBtn");
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ Triggering...";
+            btn.disabled = true;
+
+            try {{
+                const res = await fetch(`https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
+                    method: "POST",
+                    headers: {{
+                        "Accept": "application/vnd.github+json",
+                        "Authorization": `Bearer ${{token}}`,
+                        "X-GitHub-Api-Version": "2022-11-28"
+                    }},
+                    body: JSON.stringify({{ ref: "main" }})
+                }});
+
+                if (res.status === 204) {{
+                    alert("🚀 Rescan triggered successfully!\n\nThe workflow is running on GitHub. Your dashboard will refresh automatically and send Telegram alerts in ~2 minutes.");
+                }} else {{
+                    const err = await res.text();
+                    alert("⚠️ Trigger failed (Status " + res.status + "): " + err + "\n\nResetting credentials.");
+                    localStorage.removeItem("GH_PAT");
+                    localStorage.removeItem("GH_OWNER");
+                    localStorage.removeItem("GH_REPO");
+                }}
+            }} catch (err) {{
+                alert("⚠️ Error triggering workflow: " + err.message);
+            }} finally {{
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }}
         }}
     </script>
 </body>
