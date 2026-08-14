@@ -2,8 +2,8 @@ name: Run Stock Scanner
 
 on:
   schedule:
-    - cron: '0 1 * * 1-5'
-  workflow_dispatch:
+    - cron: '0 1 * * 1-5'  # Automatically runs on weekdays at 1:00 AM UTC
+  workflow_dispatch:        # Enables the manual "Run workflow" button
 
 jobs:
   scan-stocks:
@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 15
 
     permissions:
-      contents: write
+      contents: write       # Grants write access to update data.json
 
     steps:
       - name: Checkout Repository
@@ -33,6 +33,6 @@ jobs:
       - name: Save Updated Data
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto-update stock data [skip ci]"
+          commit_message: "Auto-update stock data"
           file_pattern: "data.json"
           skip_dirty_check: true
