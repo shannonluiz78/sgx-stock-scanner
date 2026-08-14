@@ -68,7 +68,11 @@ def format_pct(val):
     if val is None or pd.isna(val) or val == "N/A": return "N/A"
     try:
         num = float(val)
-        return f"{num * 100:.2f}%" if abs(num) < 1.0 else f"{num:.2f}%"
+        # Decimal yield ratios (e.g. 0.054 -> 5.40%, 0.0084 -> 0.84%)
+        if abs(num) <= 0.20:
+            return f"{num * 100:.2f}%"
+        else:
+            return f"{num:.2f}%"
     except: return "N/A"
 
 def format_compact(val):
@@ -79,6 +83,68 @@ def format_compact(val):
         if abs(num) >= 1e6: return f"${num/1e6:.2f}M"
         return f"${num:,.0f}"
     except: return "N/A"
+
+def get_clean_dividend_yield(ticker_obj, symbol, last_close, info):
+    """
+    Computes and cleans dividend yield as a standardized decimal ratio (e.g. 0.052 for 5.2%).
+    Handles Yahoo Finance anomalies including FX mismatches (PHP vs SGD for EMI.SI),
+    units mismatches (cents vs dollars), and pre-scaled percentage bugs.
+    """
+    calc_yield = 0.0
+    try:
+        divs = ticker_obj.dividends
+        if divs is not None and not divs.empty:
+            divs_clean = divs.copy()
+            if hasattr(divs_clean.index, 'tz') and divs_clean.index.tz is not None:
+                divs_clean.index = divs_clean.index.tz_localize(None)
+            
+            cutoff = datetime.datetime.now() - datetime.timedelta(days=365)
+            ttm_divs = divs_clean[divs_clean.index >= cutoff]
+            if not ttm_divs.empty:
+                ttm_sum = float(ttm_divs.sum())
+                if isinstance(last_close, (int, float)) and last_close > 0:
+                    calc_yield = ttm_sum / last_close
+    except Exception:
+        pass
+
+    info_yield = 0.0
+    raw_yield = info.get("dividendYield")
+    raw_rate = info.get("dividendRate")
+
+    if raw_yield is not None and not pd.isna(raw_yield):
+        try:
+            val = float(raw_yield)
+            info_yield = val / 100.0 if val > 1.0 else val
+        except Exception:
+            pass
+    elif raw_rate is not None and not pd.isna(raw_rate) and isinstance(last_close, (int, float)) and last_close > 0:
+        try:
+            info_yield = float(raw_rate) / last_close
+        except Exception:
+            pass
+
+    # Secondary listing FX adjustment: Emperador (EMI.SI) dividends reported in PHP (~0.38 PHP) vs price in SGD (~0.45 SGD)
+    if symbol == "EMI.SI":
+        if calc_yield > 0.20:
+            calc_yield /= 43.0  # PHP/SGD exchange rate
+        if info_yield > 0.20:
+            info_yield /= 43.0
+
+    # General 100x scale / cents fixes (e.g. Nanofilm MZH.SI or pre-scaled yield values)
+    if calc_yield > 0.20:
+        calc_yield /= 100.0
+    if info_yield > 0.20:
+        info_yield /= 100.0
+
+    if 0.0 < calc_yield <= 0.20:
+        return calc_yield
+    if 0.0 < info_yield <= 0.20:
+        return info_yield
+
+    final_val = calc_yield if calc_yield > 0 else info_yield
+    while final_val > 0.20:
+        final_val /= 10.0
+    return final_val
 
 def send_telegram_alert(all_stocks):
     """Sends Telegram alerts prioritized by Bullish/Vol Surge signals first, followed by Oversold stocks."""
@@ -257,7 +323,9 @@ def analyze_universe_batch(stock_universe):
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
             data["pe_ratio"] = round(info.get("trailingPE"), 2) if info.get("trailingPE") else "N/A"
             data["pb_ratio"] = round(info.get("priceToBook"), 2) if info.get("priceToBook") else "N/A"
-            data["div_yield"] = float(info.get("dividendYield", 0) or 0)
+            
+            # Sanitized dividend yield calculation
+            data["div_yield"] = get_clean_dividend_yield(ticker_obj, symbol, data["price"], info)
 
             eps = info.get("trailingEps")
             if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
@@ -319,18 +387,28 @@ def analyze_universe_batch(stock_universe):
                             yr_int = int(yr)
                             if yr_int in yearly_dps.index:
                                 val = float(yearly_dps.loc[yr_int])
-                                dps_list.append(f"${val:.3f}")
                                 
                                 # Compute yield based on year-end close price
                                 if hist is not None and not hist.empty:
                                     yr_hist = hist[hist.index.year == yr_int]
                                     if not yr_hist.empty:
                                         yr_close = float(yr_hist["Close"].iloc[-1])
-                                        yr_yield = (val / (yr_close + 1e-9)) * 100
+                                        raw_ratio = val / (yr_close + 1e-9)
+                                        
+                                        val_corrected = val
+                                        if symbol == "EMI.SI" and raw_ratio > 0.20:
+                                            val_corrected = val / 43.0  # PHP to SGD FX fix
+                                        elif raw_ratio > 0.20:
+                                            val_corrected = val / 100.0 # Cents to dollars / 100x scale fix
+                                            
+                                        dps_list.append(f"${val_corrected:.3f}")
+                                        yr_yield = (val_corrected / (yr_close + 1e-9)) * 100
                                         yield_list.append(f"{yr_yield:.2f}%")
                                     else:
+                                        dps_list.append(f"${val:.3f}")
                                         yield_list.append("N/A")
                                 else:
+                                    dps_list.append(f"${val:.3f}")
                                     yield_list.append("N/A")
                             else:
                                 dps_list.append("$0.000")
