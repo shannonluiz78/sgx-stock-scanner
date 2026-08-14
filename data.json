@@ -1,226 +1,202 @@
-{
-  "last_updated": "2026-08-14 06:35:00 UTC",
-  "count": 20,
-  "stocks": [
-    {
-      "symbol": "D05.SI",
-      "name": "DBS",
-      "price": 75.32,
-      "change": -0.37,
-      "change_pct": -0.49,
-      "volume": 3024747,
-      "market_cap": 214210084864,
-      "pe_ratio": 19.26,
-      "dividend_yield": 416.0
-    },
-    {
-      "symbol": "O39.SI",
-      "name": "OCBC Bank",
-      "price": 31.76,
-      "change": 0.26,
-      "change_pct": 0.83,
-      "volume": 3916900,
-      "market_cap": 142611791872,
-      "pe_ratio": 18.25,
-      "dividend_yield": 298.0
-    },
-    {
-      "symbol": "U11.SI",
-      "name": "UOB",
-      "price": 41.77,
-      "change": 0.07,
-      "change_pct": 0.17,
-      "volume": 1798500,
-      "market_cap": 68957347840,
-      "pe_ratio": 14.5,
-      "dividend_yield": 422.0
-    },
-    {
-      "symbol": "Z74.SI",
-      "name": "Singtel",
-      "price": 4.45,
-      "change": 0.2,
-      "change_pct": 4.71,
-      "volume": 35324900,
-      "market_cap": "N/A",
-      "pe_ratio": 13.09,
-      "dividend_yield": 312.0
-    },
-    {
-      "symbol": "C6L.SI",
-      "name": "SIA",
-      "price": 7.08,
-      "change": -0.01,
-      "change_pct": -0.14,
-      "volume": 1715900,
-      "market_cap": 22327363584,
-      "pe_ratio": 23.6,
-      "dividend_yield": 621.0
-    },
-    {
-      "symbol": "C38U.SI",
-      "name": "CapLand IntCom T",
-      "price": 2.43,
-      "change": -0.02,
-      "change_pct": -0.82,
-      "volume": 16152600,
-      "market_cap": 19147788288,
-      "pe_ratio": 15.19,
-      "dividend_yield": 434.0
-    },
-    {
-      "symbol": "A17U.SI",
-      "name": "CapLand Ascendas REIT",
-      "price": 2.43,
-      "change": -0.01,
-      "change_pct": -0.41,
-      "volume": 11782000,
-      "market_cap": 12138371072,
-      "pe_ratio": 15.19,
-      "dividend_yield": 307.0
-    },
-    {
-      "symbol": "N2IU.SI",
-      "name": "Mapletree PanAsia Com Tr",
-      "price": 1.27,
-      "change": 0.0,
-      "change_pct": 0.0,
-      "volume": 9208300,
-      "market_cap": 6715529216,
-      "pe_ratio": 25.4,
-      "dividend_yield": 624.0
-    },
-    {
-      "symbol": "ME8U.SI",
-      "name": "Mapletree Ind Tr",
-      "price": 1.92,
-      "change": 0.01,
-      "change_pct": 0.52,
-      "volume": 1604100,
-      "market_cap": 5481606144,
-      "pe_ratio": 27.43,
-      "dividend_yield": 657.0
-    },
-    {
-      "symbol": "F34.SI",
-      "name": "Wilmar Intl",
-      "price": 3.73,
-      "change": 0.02,
-      "change_pct": 0.54,
-      "volume": 4195500,
-      "market_cap": 23286382592,
-      "pe_ratio": 12.86,
-      "dividend_yield": 404.0
-    },
-    {
-      "symbol": "Y92.SI",
-      "name": "ThaiBev",
-      "price": 0.47,
-      "change": 0.0,
-      "change_pct": 0.0,
-      "volume": 14395800,
-      "market_cap": "N/A",
-      "pe_ratio": 11.75,
-      "dividend_yield": 531.0
-    },
-    {
-      "symbol": "U96.SI",
-      "name": "Sembcorp Ind",
-      "price": 5.81,
-      "change": 0.22,
-      "change_pct": 3.94,
-      "volume": 9561900,
-      "market_cap": 10344208384,
-      "pe_ratio": 17.61,
-      "dividend_yield": 442.0
-    },
-    {
-      "symbol": "S63.SI",
-      "name": "ST Engineering",
-      "price": 10.96,
-      "change": 0.6,
-      "change_pct": 5.79,
-      "volume": 7883700,
-      "market_cap": 34187583488,
-      "pe_ratio": 60.89,
-      "dividend_yield": 176.0
-    },
-    {
-      "symbol": "G13.SI",
-      "name": "Genting Sing",
-      "price": 0.66,
-      "change": 0.035,
-      "change_pct": 5.6,
-      "volume": 121414400,
-      "market_cap": 7978127872,
-      "pe_ratio": 22.0,
-      "dividend_yield": 625.0
-    },
-    {
-      "symbol": "BN4.SI",
-      "name": "Keppel",
-      "price": 11.15,
-      "change": 0.04,
-      "change_pct": 0.36,
-      "volume": 1825900,
-      "market_cap": 20070238208,
-      "pe_ratio": 25.34,
-      "dividend_yield": 306.0
-    },
-    {
-      "symbol": "S68.SI",
-      "name": "SGX",
-      "price": 25.16,
-      "change": 0.19,
-      "change_pct": 0.76,
-      "volume": 906900,
-      "market_cap": "N/A",
-      "pe_ratio": 38.71,
-      "dividend_yield": 178.0
-    },
-    {
-      "symbol": "H78.SI",
-      "name": "HongkongLand USD",
-      "price": 8.64,
-      "change": 0.27,
-      "change_pct": 3.23,
-      "volume": 2965300,
-      "market_cap": 18414919680,
-      "pe_ratio": 8.15,
-      "dividend_yield": 323.0
-    },
-    {
-      "symbol": "C09.SI",
-      "name": "CityDev",
-      "price": 8.21,
-      "change": 0.01,
-      "change_pct": 0.12,
-      "volume": 2531300,
-      "market_cap": 7334828032,
-      "pe_ratio": 9.02,
-      "dividend_yield": 318.0
-    },
-    {
-      "symbol": "U14.SI",
-      "name": "UOL",
-      "price": 9.37,
-      "change": -0.18,
-      "change_pct": -1.88,
-      "volume": 3041200,
-      "market_cap": 7940074496,
-      "pe_ratio": 15.11,
-      "dividend_yield": 188.0
-    },
-    {
-      "symbol": "BS6.SI",
-      "name": "YZJ Shipbldg SGD",
-      "price": 4.57,
-      "change": -0.1,
-      "change_pct": -2.14,
-      "volume": 13848700,
-      "market_cap": "N/A",
-      "pe_ratio": 9.72,
-      "dividend_yield": 428.0
-    }
-  ]
-}
+[
+  {
+    "symbol": "D05.SI",
+    "name": "DBS",
+    "price": 75.38,
+    "change": -0.31,
+    "change_pct": -0.41,
+    "volume": 3102947,
+    "pe_ratio": 19.28,
+    "dividend_yield": 416.0
+  },
+  {
+    "symbol": "O39.SI",
+    "name": "OCBC Bank",
+    "price": 31.73,
+    "change": 0.23,
+    "change_pct": 0.73,
+    "volume": 4051100,
+    "pe_ratio": 18.24,
+    "dividend_yield": 298.0
+  },
+  {
+    "symbol": "U11.SI",
+    "name": "UOB",
+    "price": 41.76,
+    "change": 0.06,
+    "change_pct": 0.14,
+    "volume": 1887500,
+    "pe_ratio": 14.5,
+    "dividend_yield": 422.0
+  },
+  {
+    "symbol": "Z74.SI",
+    "name": "Singtel",
+    "price": 4.44,
+    "change": 0.19,
+    "change_pct": 4.47,
+    "volume": 36135900,
+    "pe_ratio": 13.06,
+    "dividend_yield": 312.0
+  },
+  {
+    "symbol": "C6L.SI",
+    "name": "SIA",
+    "price": 7.06,
+    "change": -0.03,
+    "change_pct": -0.42,
+    "volume": 1847000,
+    "pe_ratio": 23.53,
+    "dividend_yield": 621.0
+  },
+  {
+    "symbol": "C38U.SI",
+    "name": "CapLand IntCom T",
+    "price": 2.44,
+    "change": -0.01,
+    "change_pct": -0.41,
+    "volume": 16400100,
+    "pe_ratio": 15.25,
+    "dividend_yield": 434.0
+  },
+  {
+    "symbol": "A17U.SI",
+    "name": "CapLand Ascendas REIT",
+    "price": 2.43,
+    "change": -0.01,
+    "change_pct": -0.41,
+    "volume": 11973600,
+    "pe_ratio": 15.19,
+    "dividend_yield": 307.0
+  },
+  {
+    "symbol": "N2IU.SI",
+    "name": "Mapletree PanAsia Com Tr",
+    "price": 1.26,
+    "change": -0.01,
+    "change_pct": -0.79,
+    "volume": 10904200,
+    "pe_ratio": 25.2,
+    "dividend_yield": 624.0
+  },
+  {
+    "symbol": "ME8U.SI",
+    "name": "Mapletree Ind Tr",
+    "price": 1.92,
+    "change": 0.01,
+    "change_pct": 0.52,
+    "volume": 1660100,
+    "pe_ratio": 27.43,
+    "dividend_yield": 657.0
+  },
+  {
+    "symbol": "F34.SI",
+    "name": "Wilmar Intl",
+    "price": 3.74,
+    "change": 0.03,
+    "change_pct": 0.81,
+    "volume": 4517600,
+    "pe_ratio": 12.9,
+    "dividend_yield": 404.0
+  },
+  {
+    "symbol": "Y92.SI",
+    "name": "ThaiBev",
+    "price": 0.47,
+    "change": 0.0,
+    "change_pct": 0.0,
+    "volume": 14457900,
+    "pe_ratio": 11.75,
+    "dividend_yield": 531.0
+  },
+  {
+    "symbol": "U96.SI",
+    "name": "Sembcorp Ind",
+    "price": 5.82,
+    "change": 0.23,
+    "change_pct": 4.11,
+    "volume": 9893700,
+    "pe_ratio": 17.64,
+    "dividend_yield": 437.0
+  },
+  {
+    "symbol": "S63.SI",
+    "name": "ST Engineering",
+    "price": 10.96,
+    "change": 0.6,
+    "change_pct": 5.79,
+    "volume": 8465600,
+    "pe_ratio": 60.89,
+    "dividend_yield": 175.0
+  },
+  {
+    "symbol": "G13.SI",
+    "name": "Genting Sing",
+    "price": 0.66,
+    "change": 0.035,
+    "change_pct": 5.6,
+    "volume": 122633800,
+    "pe_ratio": 22.0,
+    "dividend_yield": 640.0
+  },
+  {
+    "symbol": "BN4.SI",
+    "name": "Keppel",
+    "price": 11.16,
+    "change": 0.05,
+    "change_pct": 0.45,
+    "volume": 1900400,
+    "pe_ratio": 25.36,
+    "dividend_yield": 306.0
+  },
+  {
+    "symbol": "S68.SI",
+    "name": "SGX",
+    "price": 25.12,
+    "change": 0.15,
+    "change_pct": 0.6,
+    "volume": 946200,
+    "pe_ratio": 38.65,
+    "dividend_yield": 178.0
+  },
+  {
+    "symbol": "H78.SI",
+    "name": "HongkongLand USD",
+    "price": 8.64,
+    "change": 0.27,
+    "change_pct": 3.23,
+    "volume": 3087900,
+    "pe_ratio": 8.15,
+    "dividend_yield": 323.0
+  },
+  {
+    "symbol": "C09.SI",
+    "name": "CityDev",
+    "price": 8.18,
+    "change": -0.02,
+    "change_pct": -0.24,
+    "volume": 2652500,
+    "pe_ratio": 8.99,
+    "dividend_yield": 318.0
+  },
+  {
+    "symbol": "U14.SI",
+    "name": "UOL",
+    "price": 9.36,
+    "change": -0.19,
+    "change_pct": -1.99,
+    "volume": 3089600,
+    "pe_ratio": 15.1,
+    "dividend_yield": 188.0
+  },
+  {
+    "symbol": "BS6.SI",
+    "name": "YZJ Shipbldg SGD",
+    "price": 4.59,
+    "change": -0.08,
+    "change_pct": -1.71,
+    "volume": 14214100,
+    "pe_ratio": 9.77,
+    "dividend_yield": 428.0
+  }
+]
