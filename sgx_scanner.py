@@ -3,7 +3,7 @@ import time
 import pandas as pd
 import yfinance as yf
 
-# SGX Stock Tickers
+# SGX Stock Tickers (Yahoo Finance requires '.SI' suffix)
 SGX_TICKERS = [
     "D05.SI",  # DBS Group
     "O39.SI",  # OCBC
@@ -27,8 +27,8 @@ SGX_TICKERS = [
     "BS6.SI",  # Yangzijiang Shipbuilding
 ]
 
-BATCH_SIZE = 5      # Small batch size to prevent IP blocking
-DELAY_SECONDS = 3   # Delay between batch requests
+BATCH_SIZE = 5      # Small batch size to avoid Yahoo Finance IP blocks
+DELAY_SECONDS = 3   # Delay between batches
 
 def fetch_stock_data():
     results = []
@@ -37,7 +37,9 @@ def fetch_stock_data():
 
     for i in range(0, total_tickers, BATCH_SIZE):
         batch = SGX_TICKERS[i:i + BATCH_SIZE]
-        print(f"Processing batch {(i // BATCH_SIZE) + 1}/{(total_tickers + BATCH_SIZE - 1) // BATCH_SIZE}: {batch}")
+        batch_num = (i // BATCH_SIZE) + 1
+        total_batches = (total_tickers + BATCH_SIZE - 1) // BATCH_SIZE
+        print(f"--> Batch {batch_num}/{total_batches}: {batch}")
 
         for ticker_symbol in batch:
             try:
@@ -45,7 +47,7 @@ def fetch_stock_data():
                 hist = ticker.history(period="5d")
 
                 if hist.empty or len(hist) < 2:
-                    print(f"  ⚠️ Skipping {ticker_symbol} (Insufficient history)")
+                    print(f"  ⚠️ Skipping {ticker_symbol}: Insufficient price data")
                     continue
 
                 latest_close = float(hist["Close"].iloc[-1])
@@ -72,7 +74,7 @@ def fetch_stock_data():
                 }
 
                 results.append(stock_info)
-                print(f"  ✓ {ticker_symbol}: ${latest_close:.3f} ({pct_change:+.2f}%)")
+                print(f"  ✓ {ticker_symbol}: SGD {latest_close:.3f} ({pct_change:+.2f}%)")
 
             except Exception as e:
                 print(f"  ❌ Error fetching {ticker_symbol}: {e}")
@@ -84,7 +86,7 @@ def fetch_stock_data():
 def main():
     stock_data = fetch_stock_data()
 
-    # Save as a raw JSON array [...] so website JavaScript can map over it immediately
+    # Save directly as a JSON list [...] so web JavaScript reads it without errors
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(stock_data, f, indent=2)
 
