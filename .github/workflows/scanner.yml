@@ -2,16 +2,16 @@ name: Run Stock Scanner
 
 on:
   schedule:
-    - cron: '0 1 * * 1-5'  # Runs automatically on weekdays
-  workflow_dispatch:        # Enables the manual 'Run workflow' button
+    - cron: '0 1 * * 1-5'
+  workflow_dispatch:
 
 jobs:
   scan-stocks:
     runs-on: ubuntu-latest
-    timeout-minutes: 5      # ⏱️ Prevents workflow from freezing
+    timeout-minutes: 5
 
     permissions:
-      contents: write       # 🔑 Gives GitHub permission to save data.json
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -25,10 +25,10 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas requests
+          pip install -r requirements.txt
 
       - name: Run Scanner Script
-        run: python scanner.py  # ⚠️ Make sure this matches your Python file name!
+        run: python sgx_screener.py
 
       - name: Save Updated Data
         uses: stefanzweifel/git-auto-commit-action@v5
