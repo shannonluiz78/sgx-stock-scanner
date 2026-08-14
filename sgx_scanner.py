@@ -28,7 +28,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Scanner Script
-        run: python sgx_screener.py
+        run: python sgx_scanner.py
 
       - name: Save Updated Data
         uses: stefanzweifel/git-auto-commit-action@v5
