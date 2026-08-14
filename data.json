@@ -1,5 +1,5 @@
 {
-  "updated_at_sgt": "2026-08-14 11:14:51 SGT",
+  "updated_at_sgt": "2026-08-14 11:22:10 SGT",
   "data": [
     {
       "ticker": "D05.SI",
@@ -67,11 +67,11 @@
       "ticker": "O39.SI",
       "name": "OCBC Bank",
       "sector": "Banking",
-      "price": 31.8,
+      "price": 31.75,
       "confidence_score": 78,
       "trade_signal": "BUY",
-      "stop_loss": 30.85,
-      "take_profit": 33.71,
+      "stop_loss": 30.8,
+      "take_profit": 33.66,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -97,7 +97,7 @@
         31.36,
         31.19,
         31.5,
-        31.8
+        31.75
       ],
       "daily_dates": [
         "2026-07-14",
@@ -191,11 +191,11 @@
       "ticker": "Z74.SI",
       "name": "Singtel",
       "sector": "Telecommunications",
-      "price": 4.39,
+      "price": 4.4,
       "confidence_score": 78,
       "trade_signal": "BUY",
-      "stop_loss": 4.26,
-      "take_profit": 4.65,
+      "stop_loss": 4.27,
+      "take_profit": 4.66,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -221,7 +221,7 @@
         4.31,
         4.29,
         4.25,
-        4.39
+        4.4
       ],
       "daily_dates": [
         "2026-07-14",
@@ -377,11 +377,11 @@
       "ticker": "BN4.SI",
       "name": "Keppel Ltd",
       "sector": "Conglomerate",
-      "price": 11.19,
+      "price": 11.16,
       "confidence_score": 58,
       "trade_signal": "WATCH",
-      "stop_loss": 10.85,
-      "take_profit": 11.86,
+      "stop_loss": 10.83,
+      "take_profit": 11.83,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -407,7 +407,7 @@
         11.08,
         11.29,
         11.11,
-        11.19
+        11.16
       ],
       "daily_dates": [
         "2026-07-14",
@@ -439,11 +439,11 @@
       "ticker": "BS6.SI",
       "name": "Yangzijiang Shipbuilding",
       "sector": "Industrials",
-      "price": 4.67,
+      "price": 4.65,
       "confidence_score": 78,
       "trade_signal": "BUY",
-      "stop_loss": 4.53,
-      "take_profit": 4.95,
+      "stop_loss": 4.51,
+      "take_profit": 4.93,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -469,7 +469,7 @@
         4.66,
         4.72,
         4.67,
-        4.67
+        4.65
       ],
       "daily_dates": [
         "2026-07-14",
@@ -501,11 +501,11 @@
       "ticker": "A17U.SI",
       "name": "CapitaLand Ascendas REIT",
       "sector": "REIT",
-      "price": 2.45,
+      "price": 2.44,
       "confidence_score": 58,
       "trade_signal": "WATCH",
-      "stop_loss": 2.38,
-      "take_profit": 2.6,
+      "stop_loss": 2.37,
+      "take_profit": 2.59,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -531,7 +531,7 @@
         2.47,
         2.45,
         2.44,
-        2.45
+        2.44
       ],
       "daily_dates": [
         "2026-07-14",
@@ -563,11 +563,11 @@
       "ticker": "C38U.SI",
       "name": "CapitaLand Int Comm Trust",
       "sector": "REIT",
-      "price": 2.42,
+      "price": 2.43,
       "confidence_score": 58,
       "trade_signal": "WATCH",
-      "stop_loss": 2.35,
-      "take_profit": 2.57,
+      "stop_loss": 2.36,
+      "take_profit": 2.58,
       "pos_size_pct": "4.0%",
       "roe": "12.0%",
       "daily_prices": [
@@ -593,7 +593,7 @@
         2.51,
         2.49,
         2.45,
-        2.42
+        2.43
       ],
       "daily_dates": [
         "2026-07-14",
