@@ -189,6 +189,9 @@ def analyze_universe_batch(stock_universe):
             "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
         }
 
+        ticker_obj = yf.Ticker(symbol, session=session)
+
+        # 1. Price extraction with Fallback
         try:
             hist = None
             if not batch_df.empty:
@@ -197,7 +200,14 @@ def analyze_universe_batch(stock_universe):
                 elif symbol in batch_df.columns.levels[0]:
                     hist = batch_df[symbol].dropna(how="all")
 
-            if hist is not None and not hist.empty and len(hist) >= 5:
+            # Fallback if batch missed this ticker
+            if hist is None or hist.empty or len(hist) < 2:
+                try:
+                    hist = ticker_obj.history(period="5y")
+                except Exception:
+                    hist = None
+
+            if hist is not None and not hist.empty and len(hist) >= 2:
                 last_close = float(hist["Close"].iloc[-1])
                 prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else last_close
                 data["price"] = last_close
@@ -239,15 +249,21 @@ def analyze_universe_batch(stock_universe):
                     elif c_rsi >= 70: data["signal"] = "OVERBOUGHT"
                 if data["vol_surge"]:
                     data["signal"] += " + VOL SURGE"
+            else:
+                # Emergency spot price lookup
+                try:
+                    fast_p = ticker_obj.fast_info.last_price
+                    if fast_p and not pd.isna(fast_p):
+                        data["price"] = float(fast_p)
+                except Exception:
+                    pass
 
         except Exception as e:
-            print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
+            print(f"⚠️ Note: Price processing skipped for {symbol}: {e}")
 
-        # Metadata & Fundamentals Parsing
+        # 2. Metadata & Fundamentals Parsing
         try:
-            time.sleep(0.3)
-            ticker_obj = yf.Ticker(symbol, session=session)
-            
+            time.sleep(0.2)
             info = {}
             try: info = ticker_obj.info or {}
             except Exception: pass
@@ -256,7 +272,31 @@ def analyze_universe_batch(stock_universe):
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
             data["pe_ratio"] = round(info.get("trailingPE"), 2) if info.get("trailingPE") else "N/A"
             data["pb_ratio"] = round(info.get("priceToBook"), 2) if info.get("priceToBook") else "N/A"
-            data["div_yield"] = float(info.get("dividendYield", 0) or 0)
+
+            # Accurate TTM Dividend Yield Calculation directly from payout history
+            ttm_yield = 0.0
+            try:
+                divs_series = ticker_obj.dividends
+                if divs_series is not None and not divs_series.empty:
+                    now_dt = datetime.datetime.now()
+                    one_yr_ago = now_dt - datetime.timedelta(days=365)
+                    divs_clean = divs_series.copy()
+                    if hasattr(divs_clean.index, 'tz') and divs_clean.index.tz is not None:
+                        divs_clean.index = divs_clean.index.tz_localize(None)
+                    recent_divs = divs_clean[divs_clean.index >= one_yr_ago]
+                    ttm_dps = float(recent_divs.sum()) if not recent_divs.empty else 0.0
+                    
+                    if isinstance(data["price"], (int, float)) and data["price"] > 0 and ttm_dps > 0:
+                        ttm_yield = ttm_dps / data["price"]
+            except Exception: pass
+
+            if ttm_yield > 0:
+                data["div_yield"] = ttm_yield
+            else:
+                raw_dy = info.get("dividendYield") or info.get("trailingAnnualDividendYield") or 0.0
+                raw_dy = float(raw_dy)
+                if raw_dy > 1.0: raw_dy = raw_dy / 100.0
+                data["div_yield"] = raw_dy
 
             eps = info.get("trailingEps")
             if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
@@ -301,7 +341,7 @@ def analyze_universe_batch(stock_universe):
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
             except Exception: pass
 
-            # Dividends
+            # Historical Dividend Table
             try:
                 divs = ticker_obj.dividends
                 if divs is not None and not divs.empty:
@@ -309,7 +349,6 @@ def analyze_universe_batch(stock_universe):
                         divs.index = divs.index.tz_localize(None)
                     
                     yearly_dps = divs.groupby(divs.index.year).sum()
-                    
                     dps_list = []
                     yield_list = []
                     
@@ -326,10 +365,8 @@ def analyze_universe_batch(stock_universe):
                                         yr_close = float(yr_hist["Close"].iloc[-1])
                                         yr_yield = (val / (yr_close + 1e-9)) * 100
                                         yield_list.append(f"{yr_yield:.2f}%")
-                                    else:
-                                        yield_list.append("N/A")
-                                else:
-                                    yield_list.append("N/A")
+                                    else: yield_list.append("N/A")
+                                else: yield_list.append("N/A")
                             else:
                                 dps_list.append("$0.000")
                                 yield_list.append("0.00%")
@@ -342,8 +379,7 @@ def analyze_universe_batch(stock_universe):
                 else:
                     data["dividends"] = ["$0.000"] * len(data["years"])
                     data["hist_div_yield"] = ["0.00%"] * len(data["years"])
-            except Exception as e:
-                print(f"⚠️ Note: Dividend calculation failed for {symbol}: {e}")
+            except Exception: pass
 
             try:
                 bs = ticker_obj.balance_sheet
@@ -438,4 +474,412 @@ def render_html_dashboard(all_stocks, top_8_recs):
         """
 
     table_rows_html = ""
-    for stk in
+    for stk in all_stocks:
+        price_str = f"${stk['price']:.2f}" if isinstance(stk['price'], (int, float)) else "N/A"
+        div_str = format_pct(stk["div_yield"])
+        chg = stk["change"]
+        p_chg = stk["p_change"]
+        
+        if chg > 0:
+            badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
+        elif chg < 0:
+            badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
+        else:
+            badge = '<span class="badge neu">$0.00 (0.00%)</span>'
+
+        table_rows_html += f"""
+        <tr onclick="openModal('{stk['ticker']}')" style="cursor: pointer;">
+            <td><strong>{stk['ticker']}</strong></td>
+            <td>{stk['name']}<br><small class="text-muted">{stk['sector']}</small></td>
+            <td><strong>{price_str}</strong></td>
+            <td>{badge}</td>
+            <td><span class="signal-tag">{stk['signal']}</span></td>
+            <td>{div_str}</td>
+            <td>{stk['target_price']}</td>
+            <td>{stk['mkt_cap']}</td>
+            <td><button class="btn-detail">Deep Dive & Chart</button></td>
+        </tr>
+        """
+
+    json_data = {s["ticker"]: s for s in all_stocks}
+
+    html_doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGX Stock Scanner Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {{ box-sizing: border-box; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; background: #0b1120; color: #f8fafc; }}
+        .container {{ max-width: 1380px; margin: 0 auto; }}
+        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; position: relative; z-index: 10; }}
+        h1 {{ font-size: 1.8rem; margin: 0; color: #38bdf8; }}
+        .text-muted {{ color: #94a3b8; font-size: 0.85rem; }}
+        .btn-trigger {{ background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; position: relative; z-index: 20; }}
+        .btn-trigger:hover {{ background: #0369a1; }}
+        .section-title {{ font-size: 1.25rem; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; }}
+        .rec-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 36px; }}
+        .rec-card {{ background: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 16px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; }}
+        .rec-card:hover {{ transform: translateY(-3px); border-color: #38bdf8; }}
+        .bucket-tag {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; }}
+        .b-anchor {{ background: rgba(56, 189, 248, 0.2); color: #38bdf8; }}
+        .b-momentum {{ background: rgba(250, 204, 21, 0.2); color: #facc15; }}
+        .b-growth {{ background: rgba(74, 222, 128, 0.2); color: #4ade80; }}
+        .b-compounder {{ background: rgba(192, 132, 252, 0.2); color: #c084fc; }}
+        .rec-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }}
+        .rec-ticker {{ font-size: 1.1rem; font-weight: 800; color: #f8fafc; }}
+        .rec-name {{ font-size: 0.8rem; color: #94a3b8; }}
+        .rec-price {{ font-size: 1.2rem; font-weight: 700; color: #f8fafc; }}
+        .rec-stats {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem; color: #cbd5e1; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }}
+        .chart-container {{ height: 90px; width: 100%; }}
+        .table-card {{ background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow-x: auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }}
+        table {{ width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }}
+        th {{ background: #0f172a; padding: 14px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155; text-transform: uppercase; font-size: 0.75rem; }}
+        td {{ padding: 12px 16px; border-bottom: 1px solid #334155; vertical-align: middle; }}
+        tr:hover {{ background: #26354a; }}
+        .badge {{ display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }}
+        .pos {{ background: rgba(34, 197, 94, 0.15); color: #4ade80; }}
+        .neg {{ background: rgba(239, 68, 68, 0.15); color: #f87171; }}
+        .neu {{ background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }}
+        .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
+        .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
+        
+        /* Modal Styles */
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }}
+        .modal-content {{ background: #1e293b; max-width: 600px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; color: #f8fafc; }}
+        .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
+        .form-group {{ margin-bottom: 16px; text-align: left; }}
+        .form-group label {{ display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #cbd5e1; }}
+        .form-control {{ width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.9rem; }}
+        .form-control:focus {{ outline: none; border-color: #38bdf8; }}
+        .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
+        .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
+        .modal-chart-box {{ background: #0f172a; padding: 16px; border-radius: 8px; margin: 16px 0; }}
+        .tf-btn-group {{ display: flex; gap: 8px; margin-bottom: 12px; justify-content: flex-end; }}
+        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }}
+        .tf-btn.active, .tf-btn:hover {{ background: #0284c7; color: white; }}
+        .big-chart-container {{ height: 260px; width: 100%; position: relative; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>SGX Stock Scanner Dashboard</h1>
+                <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
+                <div class="text-muted">Updated: {timestamp}</div>
+            </div>
+            <div>
+                <button class="btn-trigger" onclick="openTriggerModal()">⚡ Trigger Scan Now</button>
+            </div>
+        </div>
+
+        <div class="section-title">⭐ Top 8 Recommended Opportunities</div>
+        <div class="rec-grid">
+            {rec_cards_html}
+        </div>
+
+        <div class="section-title">📊 Full SGX Stock Universe Scan</div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company & Sector</th>
+                        <th>Price (SGD)</th>
+                        <th>Day Change</th>
+                        <th>Signal</th>
+                        <th>Div Yield</th>
+                        <th>Target Price</th>
+                        <th>Market Cap</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows_html}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="deepDiveModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
+            <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
+            
+            <div class="modal-chart-box">
+                <div class="tf-btn-group">
+                    <button class="tf-btn" onclick="updateModalChart('1M')">1M</button>
+                    <button class="tf-btn" onclick="updateModalChart('3M')">3M</button>
+                    <button class="tf-btn" onclick="updateModalChart('6M')">6M</button>
+                    <button class="tf-btn active" onclick="updateModalChart('1Y')">1Y</button>
+                    <button class="tf-btn" onclick="updateModalChart('3Y')">3Y</button>
+                    <button class="tf-btn" onclick="updateModalChart('5Y')">5Y</button>
+                </div>
+                <div class="big-chart-container">
+                    <canvas id="modalChartCanvas"></canvas>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:#0f172a; padding:16px; border-radius:8px;">
+                <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
+                <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
+                <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
+                <div>PPE / Buildings: <strong id="m-ppe">N/A</strong></div>
+                <div>Target Price: <strong id="m-target">N/A</strong></div>
+                <div>Economic Moat: <strong id="m-moat">N/A</strong></div>
+            </div>
+
+            <h3 style="font-size:1rem; margin-top:16px;">5-Year Financials & Dividend History</h3>
+            <table class="data-table">
+                <thead>
+                    <tr id="m-hist-years"><th>Metric</th></tr>
+                </thead>
+                <tbody>
+                    <tr id="m-hist-rev"><td>Revenue</td></tr>
+                    <tr id="m-hist-net"><td>Net Income</td></tr>
+                    <tr id="m-hist-ocf"><td>Op. Cash Flow</td></tr>
+                    <tr id="m-hist-fcf"><td>Free Cash Flow</td></tr>
+                    <tr id="m-hist-div"><td>Div / Share (DPS)</td></tr>
+                    <tr id="m-hist-yield"><td>Hist. Div Yield</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="triggerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeTriggerModal()">&times;</span>
+            <h2 style="margin-top:0; color:#38bdf8;">⚡ Trigger Fresh Stock Scan</h2>
+            <p style="font-size:0.85rem; color:#94a3b8;">This will instruct GitHub Actions to pull live prices from Yahoo Finance and update this dashboard.</p>
+            
+            <div class="form-group">
+                <label>GitHub Username</label>
+                <input type="text" id="ghUser" class="form-control" placeholder="e.g. john-doe">
+            </div>
+
+            <div class="form-group">
+                <label>Repository Name</label>
+                <input type="text" id="ghRepo" class="form-control" placeholder="e.g. sgx-stock-scanner">
+            </div>
+
+            <div class="form-group">
+                <label>GitHub Personal Access Token (PAT)</label>
+                <input type="password" id="ghToken" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                <small class="text-muted">Stored locally in your browser so you don't have to re-enter it.</small>
+            </div>
+
+            <button id="btnRunAction" class="btn-trigger" style="width:100%; margin-top:12px;" onclick="executeWorkflowDispatch()">🚀 Trigger GitHub Actions Scan</button>
+        </div>
+    </div>
+
+    <script>
+        const stockData = {json.dumps(json_data)};
+        const recData = {json.dumps([r['data']['ticker'] for r in top_8_recs])};
+        let modalChartInstance = null;
+        let activeModalTicker = null;
+
+        window.onload = function() {{
+            if (localStorage.getItem("gh_user")) document.getElementById('ghUser').value = localStorage.getItem("gh_user");
+            if (localStorage.getItem("gh_repo")) document.getElementById('ghRepo').value = localStorage.getItem("gh_repo");
+            if (localStorage.getItem("gh_token")) document.getElementById('ghToken').value = localStorage.getItem("gh_token");
+
+            recData.forEach(ticker => {{
+                const item = stockData[ticker];
+                if (item && item.hist_prices && item.hist_prices.length > 0) {{
+                    const canvasId = 'chart-' + ticker.replace('.', '_');
+                    const ctx = document.getElementById(canvasId);
+                    if (ctx) {{
+                        new Chart(ctx, {{
+                            type: 'line',
+                            data: {{
+                                labels: item.hist_labels,
+                                datasets: [{{
+                                    data: item.hist_prices,
+                                    borderColor: '#38bdf8',
+                                    borderWidth: 2,
+                                    fill: false,
+                                    pointRadius: 0
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {{ legend: {{ display: false }} }},
+                                scales: {{ x: {{ display: false }}, y: {{ display: false }} }}
+                            }}
+                        }});
+                    }}
+                }}
+            }});
+        }};
+
+        function openTriggerModal() {{
+            document.getElementById('triggerModal').style.display = 'flex';
+        }}
+
+        function closeTriggerModal() {{
+            document.getElementById('triggerModal').style.display = 'none';
+        }}
+
+        async function executeWorkflowDispatch() {{
+            const user = document.getElementById('ghUser').value.trim();
+            const repo = document.getElementById('ghRepo').value.trim();
+            const token = document.getElementById('ghToken').value.trim();
+
+            if (!user || !repo || !token) {{
+                alert("Please fill in GitHub Username, Repository Name, and Token.");
+                return;
+            }}
+
+            localStorage.setItem("gh_user", user);
+            localStorage.setItem("gh_repo", repo);
+            localStorage.setItem("gh_token", token);
+
+            const btn = document.getElementById('btnRunAction');
+            btn.innerText = "⏳ Dispatching to GitHub Actions...";
+            btn.disabled = true;
+
+            try {{
+                const res = await fetch(`https://api.github.com/repos/${{user}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
+                    method: 'POST',
+                    headers: {{
+                        'Accept': 'application/vnd.github+json',
+                        'Authorization': `Bearer ${{token}}`,
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    }},
+                    body: JSON.stringify({{ ref: 'main' }})
+                }});
+
+                if (res.status === 204) {{
+                    alert("✅ Scan triggered successfully! Check your GitHub Actions tab to monitor execution.");
+                    closeTriggerModal();
+                }} else if (res.status === 404) {{
+                    alert("❌ 404 Not Found: Check Username, Repo Name, and workflow filename (.github/workflows/scanner.yml).");
+                }} else if (res.status === 401 || res.status === 403) {{
+                    alert("❌ Authentication Failed: Ensure your GitHub PAT has the 'repo' scope enabled.");
+                }} else {{
+                    const err = await res.json().catch(() => ({{}}));
+                    alert(`⚠️ Error (${{res.status}}): ${{err.message || res.statusText}}`);
+                }}
+            }} catch (e) {{
+                alert("⚠️ Network error: " + e.message);
+            }} finally {{
+                btn.innerText = "🚀 Trigger GitHub Actions Scan";
+                btn.disabled = false;
+            }}
+        }}
+
+        function openModal(ticker) {{
+            const item = stockData[ticker];
+            if (!item) return;
+
+            activeModalTicker = ticker;
+
+            document.getElementById('m-title').innerText = item.ticker + ' - ' + item.name;
+            document.getElementById('m-subtitle').innerText = item.sector + ' | ' + item.mkt_cap + ' Market Cap';
+            document.getElementById('m-st-debt').innerText = item.short_debt;
+            document.getElementById('m-lt-debt').innerText = item.long_debt;
+            document.getElementById('m-cash').innerText = item.assets_cash;
+            document.getElementById('m-ppe').innerText = item.assets_ppe;
+            document.getElementById('m-target').innerText = item.target_price;
+            document.getElementById('m-moat').innerText = item.moat;
+
+            const yearsHeader = '<th>Metric</th>' + (item.years && item.years.length > 0 ? item.years.map(y => `<th>${{y}}</th>`).join('') : '<th>N/A</th>');
+            document.getElementById('m-hist-years').innerHTML = yearsHeader;
+            
+            document.getElementById('m-hist-rev').innerHTML = '<td>Revenue</td>' + (item.revenue && item.revenue.length > 0 ? item.revenue.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-net').innerHTML = '<td>Net Income</td>' + (item.net_income && item.net_income.length > 0 ? item.net_income.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-ocf').innerHTML = '<td>Op Cashflow</td>' + (item.ocf && item.ocf.length > 0 ? item.ocf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-fcf').innerHTML = '<td>Free Cashflow</td>' + (item.fcf && item.fcf.length > 0 ? item.fcf.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-div').innerHTML = '<td>Div / Share (DPS)</td>' + (item.dividends && item.dividends.length > 0 ? item.dividends.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+            document.getElementById('m-hist-yield').innerHTML = '<td>Hist. Div Yield</td>' + (item.hist_div_yield && item.hist_div_yield.length > 0 ? item.hist_div_yield.map(v => `<td>${{v}}</td>`).join('') : '<td>N/A</td>');
+
+            document.getElementById('deepDiveModal').style.display = 'flex';
+            updateModalChart('1Y');
+        }}
+
+        function updateModalChart(timeframe) {{
+            if (!activeModalTicker || !stockData[activeModalTicker]) return;
+
+            const item = stockData[activeModalTicker];
+            const dates = item.daily_dates || [];
+            const prices = item.daily_prices || [];
+
+            if (dates.length === 0 || prices.length === 0) return;
+
+            const buttons = document.querySelectorAll('.tf-btn');
+            buttons.forEach(btn => {{
+                if (btn.innerText === timeframe) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }});
+
+            let count = dates.length;
+            if (timeframe === '1M') count = Math.min(21, dates.length);
+            else if (timeframe === '3M') count = Math.min(63, dates.length);
+            else if (timeframe === '6M') count = Math.min(126, dates.length);
+            else if (timeframe === '1Y') count = Math.min(252, dates.length);
+            else if (timeframe === '3Y') count = Math.min(756, dates.length);
+            else if (timeframe === '5Y') count = dates.length;
+
+            const filteredDates = dates.slice(-count);
+            const filteredPrices = prices.slice(-count);
+
+            const ctx = document.getElementById('modalChartCanvas').getContext('2d');
+
+            if (modalChartInstance) {{
+                modalChartInstance.destroy();
+            }}
+
+            modalChartInstance = new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: filteredDates,
+                    datasets: [{{
+                        label: 'Price (SGD)',
+                        data: filteredPrices,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 1,
+                        tension: 0.1
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{ legend: {{ display: false }} }},
+                    scales: {{
+                        x: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8', maxTicksLimit: 8 }} }},
+                        y: {{ grid: {{ color: '#1e293b' }}, ticks: {{ color: '#94a3b8' }} }}
+                    }}
+                }}
+            }});
+        }}
+
+        function closeModal() {{
+            document.getElementById('deepDiveModal').style.display = 'none';
+        }}
+    </script>
+</body>
+</html>"""
+
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_doc)
+    print("✅ Dashboard generated successfully: index.html")
+
+def main():
+    print("Starting SGX scanner...")
+    analyzed = analyze_universe_batch(STOCK_UNIVERSE)
+    top_8 = allocate_top_8_buckets(analyzed)
+    render_html_dashboard(analyzed, top_8)
+    
+    # Send Telegram Alerts
+    send_telegram_alert(analyzed)
+
+if __name__ == "__main__":
+    main()
