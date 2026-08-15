@@ -85,7 +85,7 @@ def send_telegram_alert(all_stocks):
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
     if not bot_token or not chat_id:
-        print("ℹ️ Telegram credentials missing. Skipping alert.")
+        print("ℹ️ Telegram credentials missing in environment variables. Skipping alert notification.")
         return
 
     priority_stocks = []
@@ -99,7 +99,7 @@ def send_telegram_alert(all_stocks):
             oversold_stocks.append(s)
 
     if not priority_stocks and not oversold_stocks:
-        print("ℹ️ No alert triggers detected.")
+        print("ℹ️ No alert triggers detected in today's scan.")
         return
 
     date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -130,13 +130,19 @@ def send_telegram_alert(all_stocks):
             )
 
     msg_text = "\n".join(msg_lines)
+
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": msg_text, "parse_mode": "HTML", "disable_web_page_preview": True}
+    payload = {
+        "chat_id": chat_id,
+        "text": msg_text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
 
     try:
         res = requests.post(url, json=payload, timeout=10)
         if res.status_code == 200:
-            print(f"✅ Telegram alert sent successfully.")
+            print(f"✅ Telegram alert sent successfully ({len(priority_stocks) + len(oversold_stocks)} stocks flagged).")
         else:
             print(f"⚠️ Failed to send Telegram alert: {res.text}")
     except Exception as e:
@@ -152,7 +158,7 @@ def get_statement_row(df, possible_names):
 
 def analyze_universe_batch(stock_universe):
     tickers = [item["ticker"] for item in stock_universe]
-    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers...")
+    print(f"⚡ Downloading 5-year price history for {len(tickers)} tickers in 1 batch request...")
 
     try:
         batch_df = yf.download(tickers, period="5y", group_by="ticker", threads=True, progress=False, session=session)
@@ -183,6 +189,9 @@ def analyze_universe_batch(stock_universe):
             "signal": "NEUTRAL", "scores": {"anchor": 0, "momentum": 0, "growth": 0, "compounder": 0}
         }
 
+        ticker_obj = yf.Ticker(symbol, session=session)
+
+        # 1. Price extraction with Fallback
         try:
             hist = None
             if not batch_df.empty:
@@ -191,7 +200,14 @@ def analyze_universe_batch(stock_universe):
                 elif symbol in batch_df.columns.levels[0]:
                     hist = batch_df[symbol].dropna(how="all")
 
-            if hist is not None and not hist.empty and len(hist) >= 5:
+            # Fallback if batch missed this ticker
+            if hist is None or hist.empty or len(hist) < 2:
+                try:
+                    hist = ticker_obj.history(period="5y")
+                except Exception:
+                    hist = None
+
+            if hist is not None and not hist.empty and len(hist) >= 2:
                 last_close = float(hist["Close"].iloc[-1])
                 prev_close = float(hist["Close"].iloc[-2]) if len(hist) > 1 else last_close
                 data["price"] = last_close
@@ -233,20 +249,54 @@ def analyze_universe_batch(stock_universe):
                     elif c_rsi >= 70: data["signal"] = "OVERBOUGHT"
                 if data["vol_surge"]:
                     data["signal"] += " + VOL SURGE"
+            else:
+                # Emergency spot price lookup
+                try:
+                    fast_p = ticker_obj.fast_info.last_price
+                    if fast_p and not pd.isna(fast_p):
+                        data["price"] = float(fast_p)
+                except Exception:
+                    pass
 
         except Exception as e:
-            print(f"⚠️ Note: Failed processing price history for {symbol}: {e}")
+            print(f"⚠️ Note: Price processing skipped for {symbol}: {e}")
 
+        # 2. Metadata & Fundamentals Parsing
         try:
             time.sleep(0.2)
-            ticker_obj = yf.Ticker(symbol, session=session)
-            info = ticker_obj.info or {}
-            
+            info = {}
+            try: info = ticker_obj.info or {}
+            except Exception: pass
+
             data["mkt_cap_raw"] = info.get("marketCap", 0) or 0
             data["mkt_cap"] = format_compact(data["mkt_cap_raw"])
             data["pe_ratio"] = round(info.get("trailingPE"), 2) if info.get("trailingPE") else "N/A"
             data["pb_ratio"] = round(info.get("priceToBook"), 2) if info.get("priceToBook") else "N/A"
-            data["div_yield"] = float(info.get("dividendYield", 0) or 0)
+
+            # Accurate TTM Dividend Yield Calculation directly from payout history
+            ttm_yield = 0.0
+            try:
+                divs_series = ticker_obj.dividends
+                if divs_series is not None and not divs_series.empty:
+                    now_dt = datetime.datetime.now()
+                    one_yr_ago = now_dt - datetime.timedelta(days=365)
+                    divs_clean = divs_series.copy()
+                    if hasattr(divs_clean.index, 'tz') and divs_clean.index.tz is not None:
+                        divs_clean.index = divs_clean.index.tz_localize(None)
+                    recent_divs = divs_clean[divs_clean.index >= one_yr_ago]
+                    ttm_dps = float(recent_divs.sum()) if not recent_divs.empty else 0.0
+                    
+                    if isinstance(data["price"], (int, float)) and data["price"] > 0 and ttm_dps > 0:
+                        ttm_yield = ttm_dps / data["price"]
+            except Exception: pass
+
+            if ttm_yield > 0:
+                data["div_yield"] = ttm_yield
+            else:
+                raw_dy = info.get("dividendYield") or info.get("trailingAnnualDividendYield") or 0.0
+                raw_dy = float(raw_dy)
+                if raw_dy > 1.0: raw_dy = raw_dy / 100.0
+                data["div_yield"] = raw_dy
 
             eps = info.get("trailingEps")
             if eps and eps > 0: data["intrinsic_val"] = f"${eps * 15.5:.2f}"
@@ -263,6 +313,7 @@ def analyze_universe_batch(stock_universe):
             elif data["mkt_cap_raw"] > 2e9: data["moat"] = "NARROW MOAT"
             else: data["moat"] = "MODERATE MOAT"
 
+            # Financial Statements
             try:
                 fin = ticker_obj.financials
                 if fin is not None and not fin.empty:
@@ -274,6 +325,7 @@ def analyze_universe_batch(stock_universe):
                     data["net_income"] = [format_compact(net_row[c]) if net_row is not None and c in net_row else "N/A" for c in cols][::-1]
             except Exception: pass
 
+            # Cash Flow
             try:
                 cf = ticker_obj.cashflow
                 if cf is not None and not cf.empty:
@@ -289,6 +341,7 @@ def analyze_universe_batch(stock_universe):
                     data["fcf"] = [format_compact(v) for v in fcf_vals][::-1]
             except Exception: pass
 
+            # Historical Dividend Table
             try:
                 divs = ticker_obj.dividends
                 if divs is not None and not divs.empty:
@@ -296,7 +349,8 @@ def analyze_universe_batch(stock_universe):
                         divs.index = divs.index.tz_localize(None)
                     
                     yearly_dps = divs.groupby(divs.index.year).sum()
-                    dps_list, yield_list = [], []
+                    dps_list = []
+                    yield_list = []
                     
                     for yr in data["years"]:
                         try:
@@ -304,12 +358,13 @@ def analyze_universe_batch(stock_universe):
                             if yr_int in yearly_dps.index:
                                 val = float(yearly_dps.loc[yr_int])
                                 dps_list.append(f"${val:.3f}")
+                                
                                 if hist is not None and not hist.empty:
                                     yr_hist = hist[hist.index.year == yr_int]
                                     if not yr_hist.empty:
                                         yr_close = float(yr_hist["Close"].iloc[-1])
-                                        dps_yield = (val / (yr_close + 1e-9)) * 100
-                                        yield_list.append(f"{dps_yield:.2f}%")
+                                        yr_yield = (val / (yr_close + 1e-9)) * 100
+                                        yield_list.append(f"{yr_yield:.2f}%")
                                     else: yield_list.append("N/A")
                                 else: yield_list.append("N/A")
                             else:
@@ -343,7 +398,7 @@ def analyze_universe_batch(stock_universe):
         except Exception as e:
             print(f"⚠️ Note: Fundamentals skipped for {symbol}: {e}")
 
-        # Scores
+        # Scoring
         if is_anchor or data["mkt_cap_raw"] > 8e9:
             data["scores"]["anchor"] = (data["div_yield"] * 100) + (15 if "MOAT" in data["moat"] else 0)
 
@@ -371,7 +426,8 @@ def allocate_top_8_buckets(stock_data_list):
             reverse=True
         )
         picked = sorted_stocks[:limit]
-        for p in picked: selected_tickers.add(p["ticker"])
+        for p in picked:
+            selected_tickers.add(p["ticker"])
         return picked
 
     b1 = get_top_candidates("anchor", 2)
@@ -424,9 +480,12 @@ def render_html_dashboard(all_stocks, top_8_recs):
         chg = stk["change"]
         p_chg = stk["p_change"]
         
-        if chg > 0: badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
-        elif chg < 0: badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
-        else: badge = '<span class="badge neu">$0.00 (0.00%)</span>'
+        if chg > 0:
+            badge = f'<span class="badge pos">+${chg:.2f} (+{p_chg:.2f}%)</span>'
+        elif chg < 0:
+            badge = f'<span class="badge neg">-${abs(chg):.2f} ({p_chg:.2f}%)</span>'
+        else:
+            badge = '<span class="badge neu">$0.00 (0.00%)</span>'
 
         table_rows_html += f"""
         <tr onclick="openModal('{stk['ticker']}')" style="cursor: pointer;">
@@ -455,9 +514,11 @@ def render_html_dashboard(all_stocks, top_8_recs):
         * {{ box-sizing: border-box; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; background: #0b1120; color: #f8fafc; }}
         .container {{ max-width: 1380px; margin: 0 auto; }}
-        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }}
+        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; position: relative; z-index: 10; }}
         h1 {{ font-size: 1.8rem; margin: 0; color: #38bdf8; }}
         .text-muted {{ color: #94a3b8; font-size: 0.85rem; }}
+        .btn-trigger {{ background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; position: relative; z-index: 20; }}
+        .btn-trigger:hover {{ background: #0369a1; }}
         .section-title {{ font-size: 1.25rem; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; }}
         .rec-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 36px; }}
         .rec-card {{ background: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 16px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; }}
@@ -484,26 +545,22 @@ def render_html_dashboard(all_stocks, top_8_recs):
         .neu {{ background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }}
         .signal-tag {{ font-weight: 700; font-size: 0.75rem; color: #38bdf8; }}
         .btn-detail {{ background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }}
-        .btn-rescan {{ background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; position: relative; z-index: 10; }}
-        .btn-rescan:hover {{ background: #0369a1; transform: scale(1.02); }}
         
         /* Modal Styles */
-        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; padding: 20px; }}
-        .modal-content {{ background: #1e293b; max-width: 900px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; }}
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }}
+        .modal-content {{ background: #1e293b; max-width: 600px; width: 100%; max-height: 92vh; border-radius: 12px; border: 1px solid #475569; overflow-y: auto; padding: 24px; position: relative; color: #f8fafc; }}
         .close-btn {{ position: absolute; top: 16px; right: 20px; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }}
-        .modal-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; background: #0f172a; padding: 16px; border-radius: 8px; }}
+        .form-group {{ margin-bottom: 16px; text-align: left; }}
+        .form-group label {{ display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #cbd5e1; }}
+        .form-control {{ width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.9rem; }}
+        .form-control:focus {{ outline: none; border-color: #38bdf8; }}
         .data-table {{ width: 100%; margin-top: 12px; border: 1px solid #334155; }}
         .data-table th, .data-table td {{ border: 1px solid #334155; padding: 8px; text-align: center; font-size: 0.8rem; }}
         .modal-chart-box {{ background: #0f172a; padding: 16px; border-radius: 8px; margin: 16px 0; }}
         .tf-btn-group {{ display: flex; gap: 8px; margin-bottom: 12px; justify-content: flex-end; }}
-        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; }}
+        .tf-btn {{ background: #334155; color: #cbd5e1; border: none; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }}
         .tf-btn.active, .tf-btn:hover {{ background: #0284c7; color: white; }}
         .big-chart-container {{ height: 260px; width: 100%; position: relative; }}
-
-        /* Input Form Modal */
-        .input-group {{ margin-bottom: 14px; text-align: left; }}
-        .input-group label {{ display: block; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; font-weight: 600; }}
-        .input-group input {{ width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 0.88rem; }}
     </style>
 </head>
 <body>
@@ -512,10 +569,10 @@ def render_html_dashboard(all_stocks, top_8_recs):
             <div>
                 <h1>SGX Stock Scanner Dashboard</h1>
                 <div class="text-muted">STI 30 + Mid-Caps • Batch Download Enabled</div>
+                <div class="text-muted">Updated: {timestamp}</div>
             </div>
-            <div style="text-align: right;">
-                <button id="rescanBtn" class="btn-rescan" onclick="openTriggerModal()">🔄 Trigger Rescan</button>
-                <div class="text-muted" style="margin-top:4px;">Updated: {timestamp}</div>
+            <div>
+                <button class="btn-trigger" onclick="openTriggerModal()">⚡ Trigger Scan Now</button>
             </div>
         </div>
 
@@ -547,33 +604,8 @@ def render_html_dashboard(all_stocks, top_8_recs):
         </div>
     </div>
 
-    <div id="triggerModal" class="modal">
-        <div class="modal-content" style="max-width: 480px;">
-            <span class="close-btn" onclick="closeTriggerModal()">&times;</span>
-            <h2 style="margin-top:0; color:#38bdf8;">🔄 Trigger Ad-Hoc Scan</h2>
-            <p class="text-muted" style="margin-bottom:16px;">Enter your GitHub details to start the workflow. Saved locally in browser.</p>
-            
-            <div class="input-group">
-                <label>GitHub Personal Access Token (PAT):</label>
-                <input type="password" id="inputPAT" placeholder="github_pat_11A...">
-            </div>
-            <div class="input-group">
-                <label>GitHub Username / Org:</label>
-                <input type="text" id="inputOwner" placeholder="e.g. john-doe">
-            </div>
-            <div class="input-group">
-                <label>Repository Name:</label>
-                <input type="text" id="inputRepo" placeholder="e.g. sgx-stock-scanner">
-            </div>
-
-            <button onclick="executeScanTrigger()" style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; margin-top:8px;">
-                🚀 Start Scan Now
-            </button>
-        </div>
-    </div>
-
     <div id="deepDiveModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px;">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h2 id="m-title" style="margin:0; color:#38bdf8;">Stock Detail</h2>
             <div id="m-subtitle" class="text-muted" style="margin-bottom:12px;">Sector</div>
@@ -592,7 +624,7 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 </div>
             </div>
 
-            <div class="modal-grid">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:#0f172a; padding:16px; border-radius:8px;">
                 <div>Short-Term Debt: <strong id="m-st-debt">N/A</strong></div>
                 <div>Long-Term Debt: <strong id="m-lt-debt">N/A</strong></div>
                 <div>Cash Assets: <strong id="m-cash">N/A</strong></div>
@@ -618,6 +650,32 @@ def render_html_dashboard(all_stocks, top_8_recs):
         </div>
     </div>
 
+    <div id="triggerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeTriggerModal()">&times;</span>
+            <h2 style="margin-top:0; color:#38bdf8;">⚡ Trigger Fresh Stock Scan</h2>
+            <p style="font-size:0.85rem; color:#94a3b8;">This will instruct GitHub Actions to pull live prices from Yahoo Finance and update this dashboard.</p>
+            
+            <div class="form-group">
+                <label>GitHub Username</label>
+                <input type="text" id="ghUser" class="form-control" placeholder="e.g. john-doe">
+            </div>
+
+            <div class="form-group">
+                <label>Repository Name</label>
+                <input type="text" id="ghRepo" class="form-control" placeholder="e.g. sgx-stock-scanner">
+            </div>
+
+            <div class="form-group">
+                <label>GitHub Personal Access Token (PAT)</label>
+                <input type="password" id="ghToken" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                <small class="text-muted">Stored locally in your browser so you don't have to re-enter it.</small>
+            </div>
+
+            <button id="btnRunAction" class="btn-trigger" style="width:100%; margin-top:12px;" onclick="executeWorkflowDispatch()">🚀 Trigger GitHub Actions Scan</button>
+        </div>
+    </div>
+
     <script>
         const stockData = {json.dumps(json_data)};
         const recData = {json.dumps([r['data']['ticker'] for r in top_8_recs])};
@@ -625,6 +683,10 @@ def render_html_dashboard(all_stocks, top_8_recs):
         let activeModalTicker = null;
 
         window.onload = function() {{
+            if (localStorage.getItem("gh_user")) document.getElementById('ghUser').value = localStorage.getItem("gh_user");
+            if (localStorage.getItem("gh_repo")) document.getElementById('ghRepo').value = localStorage.getItem("gh_repo");
+            if (localStorage.getItem("gh_token")) document.getElementById('ghToken').value = localStorage.getItem("gh_token");
+
             recData.forEach(ticker => {{
                 const item = stockData[ticker];
                 if (item && item.hist_prices && item.hist_prices.length > 0) {{
@@ -654,6 +716,62 @@ def render_html_dashboard(all_stocks, top_8_recs):
                 }}
             }});
         }};
+
+        function openTriggerModal() {{
+            document.getElementById('triggerModal').style.display = 'flex';
+        }}
+
+        function closeTriggerModal() {{
+            document.getElementById('triggerModal').style.display = 'none';
+        }}
+
+        async function executeWorkflowDispatch() {{
+            const user = document.getElementById('ghUser').value.trim();
+            const repo = document.getElementById('ghRepo').value.trim();
+            const token = document.getElementById('ghToken').value.trim();
+
+            if (!user || !repo || !token) {{
+                alert("Please fill in GitHub Username, Repository Name, and Token.");
+                return;
+            }}
+
+            localStorage.setItem("gh_user", user);
+            localStorage.setItem("gh_repo", repo);
+            localStorage.setItem("gh_token", token);
+
+            const btn = document.getElementById('btnRunAction');
+            btn.innerText = "⏳ Dispatching to GitHub Actions...";
+            btn.disabled = true;
+
+            try {{
+                const res = await fetch(`https://api.github.com/repos/${{user}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
+                    method: 'POST',
+                    headers: {{
+                        'Accept': 'application/vnd.github+json',
+                        'Authorization': `Bearer ${{token}}`,
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    }},
+                    body: JSON.stringify({{ ref: 'main' }})
+                }});
+
+                if (res.status === 204) {{
+                    alert("✅ Scan triggered successfully! Check your GitHub Actions tab to monitor execution.");
+                    closeTriggerModal();
+                }} else if (res.status === 404) {{
+                    alert("❌ 404 Not Found: Check Username, Repo Name, and workflow filename (.github/workflows/scanner.yml).");
+                }} else if (res.status === 401 || res.status === 403) {{
+                    alert("❌ Authentication Failed: Ensure your GitHub PAT has the 'repo' scope enabled.");
+                }} else {{
+                    const err = await res.json().catch(() => ({{}}));
+                    alert(`⚠️ Error (${{res.status}}): ${{err.message || res.statusText}}`);
+                }}
+            }} catch (e) {{
+                alert("⚠️ Network error: " + e.message);
+            }} finally {{
+                btn.innerText = "🚀 Trigger GitHub Actions Scan";
+                btn.disabled = false;
+            }}
+        }}
 
         function openModal(ticker) {{
             const item = stockData[ticker];
@@ -745,62 +863,6 @@ def render_html_dashboard(all_stocks, top_8_recs):
 
         function closeModal() {{
             document.getElementById('deepDiveModal').style.display = 'none';
-        }}
-
-        /* Rescan Trigger Modal Functions */
-        function openTriggerModal() {{
-            document.getElementById('inputPAT').value = localStorage.getItem("GH_PAT") || "";
-            document.getElementById('inputOwner').value = localStorage.getItem("GH_OWNER") || "";
-            document.getElementById('inputRepo').value = localStorage.getItem("GH_REPO") || "";
-            document.getElementById('triggerModal').style.display = 'flex';
-        }}
-
-        function closeTriggerModal() {{
-            document.getElementById('triggerModal').style.display = 'none';
-        }}
-
-        async function executeScanTrigger() {{
-            const token = document.getElementById('inputPAT').value.trim();
-            const owner = document.getElementById('inputOwner').value.trim();
-            const repo = document.getElementById('inputRepo').value.trim();
-
-            if (!token || !owner || !repo) {{
-                alert("Please fill in all three fields!");
-                return;
-            }}
-
-            localStorage.setItem("GH_PAT", token);
-            localStorage.setItem("GH_OWNER", owner);
-            localStorage.setItem("GH_REPO", repo);
-
-            const btn = document.getElementById("rescanBtn");
-            btn.innerText = "⏳ Triggering...";
-            btn.disabled = true;
-            closeTriggerModal();
-
-            try {{
-                const res = await fetch(`https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/scanner.yml/dispatches`, {{
-                    method: "POST",
-                    headers: {{
-                        "Accept": "application/vnd.github+json",
-                        "Authorization": `Bearer ${{token}}`,
-                        "X-GitHub-Api-Version": "2022-11-28"
-                    }},
-                    body: JSON.stringify({{ ref: "main" }})
-                }});
-
-                if (res.status === 204) {{
-                    alert("🚀 Rescan triggered successfully!\n\nThe scanner is now running on GitHub. Results will appear here and on Telegram in ~2 minutes.");
-                }} else {{
-                    const err = await res.text();
-                    alert("⚠️ Trigger failed (Status " + res.status + "): " + err);
-                }}
-            }} catch (err) {{
-                alert("⚠️ Error triggering workflow: " + err.message);
-            }} finally {{
-                btn.innerText = "🔄 Trigger Rescan";
-                btn.disabled = false;
-            }}
         }}
     </script>
 </body>
